@@ -20,6 +20,8 @@ final readonly class ScopeArgument
      *                   request arguments it names
      * @param array<string, list<mixed>> $nested rules by dot path inside the
      *                                           argument
+     * @param array<string, string> $nestedAttributes names by dot path
+     *                                                inside the argument
      * @param null|(Closure(mixed): mixed) $check closure cast, run as a
      *                                            validation once the rules of
      *                                            the argument passed
@@ -36,5 +38,6 @@ final readonly class ScopeArgument
         public bool $lazy = false,
         public array $nested = [],
         public ?Closure $check = null,
+        public array $nestedAttributes = [],
     ) {}
 }

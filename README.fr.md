@@ -313,7 +313,8 @@ $scope->scope('inRanges')               // toute structure, comme Laravel
         '*.min' => ['required', 'integer'],
         '*.max' => ['required', 'integer', 'gte:inRanges.ranges.*.min'],
     ])
-    ->messages(ranges: ['*.min.required' => 'Min obligatoire.']);
+    ->messages(ranges: ['*.min.required' => 'Min obligatoire.'])
+    ->attribute(ranges: ['*.min' => 'minimum', '*.max' => 'maximum']);
 
 $scope->scope('near')                   // paramètres non typés
     ->cast(lat: Type::Float, lng: Type::Float);
@@ -329,7 +330,9 @@ $scope->scope('priced')
   (`*.min`, `geo.lat`, `tags.*`), appliquées seulement si l'argument est
   fourni. Une règle qui cite un autre champ (`gte:`, `required_with:`…)
   utilise son chemin complet. `each(x: [...])` est un raccourci pour
-  `nested(x: ['*' => [...]])`.
+  `nested(x: ['*' => [...]])`. `messages()` et `attribute()` prennent les
+  mêmes chemins : `attribute()` prend un nom pour l'argument lui-même, ou des
+  noms par chemin (`['*.min' => 'minimum']`).
 - Un argument `array` sans `each()` ni `nested()` est une liste plate : un
   élément qui est lui-même un tableau est rejeté.
 - `cast()` est obligatoire pour un paramètre non typé, `mixed`, union, enum

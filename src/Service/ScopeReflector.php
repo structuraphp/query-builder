@@ -49,6 +49,7 @@ final class ScopeReflector
                 $config->nested,
                 $config->messages,
                 $config->attributes,
+                $config->nestedAttributes,
             ]),
         ];
         foreach ($options as $option) {
@@ -127,6 +128,7 @@ final class ScopeReflector
             check: ($config->casts[$name] ?? null) instanceof Closure
                 ? $cast
                 : null,
+            nestedAttributes: $config->nestedAttributes[$name] ?? [],
         );
     }
 
@@ -160,7 +162,10 @@ final class ScopeReflector
             'each' => $config->each,
             'nested' => $config->nested,
             'messages' => $config->messages,
-            'attribute' => $config->attributes,
+            'attribute' => [
+                ...$config->attributes,
+                ...$config->nestedAttributes,
+            ],
         ];
         foreach ($options as $option => $values) {
             if (\array_key_exists($name, $values)) {

@@ -113,6 +113,9 @@ final readonly class ValidationCompiler
             foreach (QueryApplier::fromRequest($arguments) as $argument) {
                 $key = "{$name}.{$argument->name}";
                 $attributes[$key] = $argument->attribute ?? $key;
+                foreach ($argument->nestedAttributes as $path => $attribute) {
+                    $attributes["{$key}.{$path}"] = $attribute;
+                }
             }
         }
 

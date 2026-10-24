@@ -41,6 +41,9 @@ final class ScopeConfig implements ScopeConfigInterface
     /** @var array<string, string> */
     public private(set) array $attributes = [];
 
+    /** @var array<string, array<string, string>> by dot path */
+    public private(set) array $nestedAttributes = [];
+
     public function __construct(
         public readonly string $name,
     ) {}
@@ -101,12 +104,18 @@ final class ScopeConfig implements ScopeConfigInterface
         return $this;
     }
 
-    public function attribute(string ...$attributes): static
+    public function attribute(array|string ...$attributes): static
     {
-        $this->attributes = [
-            ...$this->attributes,
-            ...$this->named($attributes),
-        ];
+        foreach ($this->named($attributes) as $name => $attribute) {
+            if (\is_string($attribute)) {
+                $this->attributes[$name] = $attribute;
+            } else {
+                $this->nestedAttributes[$name] = [
+                    ...$this->nestedAttributes[$name] ?? [],
+                    ...$attribute,
+                ];
+            }
+        }
 
         return $this;
     }

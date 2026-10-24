@@ -51,5 +51,11 @@ interface ScopeConfigInterface
      */
     public function messages(array ...$messages): static;
 
-    public function attribute(string ...$attributes): static;
+    /**
+     * A name for the argument itself, or names by dot path inside it
+     * (`['*.min' => 'minimum']`).
+     *
+     * @param array<string, string>|string ...$attributes
+     */
+    public function attribute(array|string ...$attributes): static;
 }

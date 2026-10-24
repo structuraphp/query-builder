@@ -93,6 +93,31 @@ final class ScopeNestedTest extends TestCase
         );
     }
 
+    public function testNestedAttributes(): void
+    {
+        $scope = function (ScopeInterface $scope): void {
+            $scope->scope('inRanges')
+                ->nested(ranges: ['*.min' => ['required']])
+                ->attribute(ranges: 'plages')
+                ->attribute(ranges: ['*.min' => 'minimum']);
+        };
+
+        $missing = $this->errors(
+            ['inRanges' => ['ranges' => [['max' => '1']]]],
+            $scope,
+        );
+        $scalar = $this->errors(['inRanges' => ['ranges' => 'foo']], $scope);
+
+        self::assertSame(
+            ['The minimum field is required.'],
+            $missing['inRanges.ranges.0.min'] ?? null,
+        );
+        self::assertSame(
+            ['The plages field must be an array.'],
+            $scalar['inRanges.ranges'] ?? null,
+        );
+    }
+
     public function testArrayArgumentRejectsNestedArraysByDefault(): void
     {
         $scope = function (ScopeInterface $scope): void {

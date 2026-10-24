@@ -286,6 +286,18 @@ final class ScopeReflectorTest extends TestCase
                 ->nested(ids: ['*' => ['integer']]),
         ];
 
+        yield 'unknown nested attribute argument' => [
+            fn (): ScopeConfig => new ScopeConfig('inRanges')->attribute(
+                foo: ['*.min' => 'minimum'],
+            ),
+        ];
+
+        yield 'nested attribute on a context argument' => [
+            fn (): ScopeConfig => new ScopeConfig('among')
+                ->context('ids')
+                ->attribute(ids: ['*' => 'identifiant']),
+        ];
+
         yield 'cast to non enum class' => [
             fn (): ScopeConfig => new ScopeConfig('near')->cast(
                 // @phpstan-ignore argument.type
