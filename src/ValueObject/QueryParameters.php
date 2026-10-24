@@ -52,13 +52,16 @@ final readonly class QueryParameters
         $compiler = new ValidationCompiler($definition);
         $validator ??= Container::getInstance()->make(ValidationFactory::class);
 
-        /** @var array<string, mixed> $validated */
-        $validated = $validator->make(
+        $instance = $validator->make(
             $input,
             $compiler->rules(),
             $compiler->messages(),
             $compiler->attributes(),
-        )->validate();
+        );
+        $instance->after($compiler->after(...));
+
+        /** @var array<string, mixed> $validated */
+        $validated = $instance->validate();
 
         return new self($definition, $validated, $input);
     }

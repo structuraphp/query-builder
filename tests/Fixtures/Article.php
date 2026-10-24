@@ -163,6 +163,14 @@ class Article extends Model
 
     /**
      * @param Builder<self> $query
+     */
+    public function scopeViewsInRange(Builder $query, Range $range): void
+    {
+        $query->getQuery()->whereBetween('views', [$range->min, $range->max]);
+    }
+
+    /**
+     * @param Builder<self> $query
      * @param Closure(Builder<self>): void $callback
      */
     public function scopeTapped(Builder $query, Closure $callback): void

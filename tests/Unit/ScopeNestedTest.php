@@ -7,9 +7,11 @@ namespace Tests\StructuraPhp\QueryBuilder\Unit;
 use Closure;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use RuntimeException;
 use StructuraPhp\QueryBuilder\Contract\Config\ScopeInterface;
 use StructuraPhp\QueryBuilder\ValueObject\QueryParameters;
 use Tests\StructuraPhp\QueryBuilder\Fixtures\Queries\ConfigurableQuery;
+use Tests\StructuraPhp\QueryBuilder\Fixtures\Range;
 use Tests\StructuraPhp\QueryBuilder\TestCase;
 
 final class ScopeNestedTest extends TestCase
@@ -119,6 +121,41 @@ final class ScopeNestedTest extends TestCase
         self::assertSame(['Foo'], $titles);
     }
 
+    public function testCastBuildsAnObjectFromValidData(): void
+    {
+        $titles = $this->titles(['viewsInRange' => ['range' => [
+            'min' => '10',
+            'max' => '100',
+        ]]]);
+
+        self::assertSame(['Bar'], $titles);
+    }
+
+    public function testCastIsSkippedWhenTheStructureIsInvalid(): void
+    {
+        $errors = $this->errors(['viewsInRange' => ['range' => [
+            'max' => '100',
+        ]]]);
+
+        self::assertSame(['viewsInRange.range.min'], array_keys($errors));
+    }
+
+    public function testCastFailureOnValidDataIsAValidationError(): void
+    {
+        $scope = function (ScopeInterface $scope): void {
+            $scope->scope('viewsInRange')->cast(
+                range: fn (mixed $v): Range => throw new RuntimeException(),
+            );
+        };
+
+        $errors = $this->errors(
+            ['viewsInRange' => ['range' => ['min' => '1', 'max' => '2']]],
+            $scope,
+        );
+
+        self::assertSame(['viewsInRange.range'], array_keys($errors));
+    }
+
     /**
      * @param array<string, mixed> $input
      * @param null|(Closure(ScopeInterface): void) $scope
@@ -170,5 +207,20 @@ final class ScopeNestedTest extends TestCase
             'min' => ['required', 'integer'],
             'max' => ['required', 'integer'],
         ]);
+
+        $scope->scope('viewsInRange')
+            ->nested(range: [
+                'min' => ['required', 'integer'],
+                'max' => ['required', 'integer'],
+            ])
+            ->cast(range: $this->range(...));
+    }
+
+    /**
+     * @param array{min: numeric-string, max: numeric-string} $range
+     */
+    private function range(array $range): Range
+    {
+        return new Range(min: (int) $range['min'], max: (int) $range['max']);
     }
 }

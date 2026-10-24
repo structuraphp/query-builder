@@ -334,8 +334,11 @@ $scope->scope('priced')
   élément qui est lui-même un tableau est rejeté.
 - `cast()` est obligatoire pour un paramètre non typé, `mixed`, union, enum
   non backed ou de toute autre classe.
-- Une closure de `cast()` qui lève une exception donne une erreur de
-  validation.
+- Une closure de `cast()` ne s'exécute qu'une fois les règles de son
+  argument passées, `nested()` compris, et reçoit la valeur de la requête :
+  elle construit un objet à partir d'une structure validée, par exemple
+  `cast(range: fn (array $v) => new Range((int) $v['min'], (int) $v['max']))`.
+  Si elle lève une exception, c'est une erreur de validation.
 - Une valeur de `default()` peut être fixe ou une closure. Une date mutable
   (`now()`) est convertie dans la classe attendue par le scope.
 

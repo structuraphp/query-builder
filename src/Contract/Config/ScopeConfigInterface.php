@@ -23,7 +23,7 @@ interface ScopeConfigInterface
     public function context(string ...$names): static;
 
     /**
-     * @param class-string<BackedEnum>|Closure(mixed): mixed|Type ...$casts
+     * @param class-string<BackedEnum>|Closure|Type ...$casts
      */
     public function cast(Closure|string|Type ...$casts): static;
 

@@ -11,7 +11,7 @@ use StructuraPhp\QueryBuilder\Enum\Type;
 use StructuraPhp\QueryBuilder\Exception\ConfigurationException;
 
 /**
- * @phpstan-type CastType class-string<BackedEnum>|Closure(mixed): mixed|Type
+ * @phpstan-type CastType class-string<BackedEnum>|Closure|Type
  */
 final class ScopeConfig implements ScopeConfigInterface
 {

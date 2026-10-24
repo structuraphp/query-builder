@@ -5,9 +5,12 @@ declare(strict_types=1);
 namespace StructuraPhp\QueryBuilder\Service;
 
 use Closure;
+use Illuminate\Support\Arr;
 use Illuminate\Translation\PotentiallyTranslatedString;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 use StructuraPhp\QueryBuilder\Enum\Mode;
+use Throwable;
 
 final readonly class ValidationCompiler
 {
@@ -27,6 +30,47 @@ final readonly class ValidationCompiler
             ...$this->relationRules(),
             ...$this->paginationRules(),
         ];
+    }
+
+    /**
+     * Runs closure casts once the rules of their argument passed, so a cast
+     * only sees valid data. A cast that throws is a validation error.
+     */
+    public function after(Validator $validator): void
+    {
+        $errors = $validator->errors();
+        $data = $validator->getData();
+
+        foreach ($this->definition->scopes as $name => [, $arguments]) {
+            foreach ($arguments as $argument) {
+                $key = "{$name}.{$argument->name}";
+                $failed = array_any(
+                    $errors->keys(),
+                    fn (string $error): bool => $error === $key
+                        || str_starts_with($error, "{$key}."),
+                );
+                if (
+                    !$argument->check instanceof Closure
+                    || $failed
+                    || !Arr::has($data, $key)
+                ) {
+                    continue;
+                }
+
+                try {
+                    ($argument->check)(Arr::get($data, $key));
+                } catch (Throwable) {
+                    $attribute = $validator->getDisplayableAttribute($key);
+                    $message = trans('validation.in', [
+                        'attribute' => $attribute,
+                    ]);
+                    $errors->add(
+                        $key,
+                        \is_string($message) ? $message : 'validation.in',
+                    );
+                }
+            }
+        }
     }
 
     /**

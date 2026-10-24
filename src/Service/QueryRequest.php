@@ -63,6 +63,7 @@ abstract class QueryRequest extends FormRequest
         );
 
         if ($validator instanceof \Illuminate\Validation\Validator) {
+            $validator->after($compiler->after(...));
             $validator->stopOnFirstFailure($this->stopOnFirstFailure);
 
             if ($this->isPrecognitive()) {

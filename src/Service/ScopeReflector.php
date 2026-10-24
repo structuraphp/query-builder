@@ -21,7 +21,6 @@ use StructuraPhp\QueryBuilder\Enum\Type;
 use StructuraPhp\QueryBuilder\Exception\ConfigurationException;
 use StructuraPhp\QueryBuilder\ValueObject\Config\ScopeConfig;
 use StructuraPhp\QueryBuilder\ValueObject\ScopeArgument;
-use Throwable;
 
 /**
  * @phpstan-type Resolved array{list<mixed>, Closure(mixed): mixed}
@@ -125,6 +124,9 @@ final class ScopeReflector
             cast: $cast,
             default: $this->default($config, $parameter),
             nested: $nested,
+            check: ($config->casts[$name] ?? null) instanceof Closure
+                ? $cast
+                : null,
         );
     }
 
@@ -188,7 +190,7 @@ final class ScopeReflector
     }
 
     /**
-     * @param class-string<BackedEnum>|Closure(mixed): mixed|Type $cast
+     * @param class-string<BackedEnum>|Closure|Type $cast
      *
      * @return Resolved
      */
@@ -221,7 +223,7 @@ final class ScopeReflector
      * Validation and application share the result, so the closure runs once
      * per value and request.
      *
-     * @param Closure(mixed): mixed $cast
+     * @param Closure $cast any closure, typed by the user
      *
      * @return Resolved
      */
@@ -236,20 +238,8 @@ final class ScopeReflector
 
             return $results[$key];
         };
-        $rule = function (
-            string $attribute,
-            mixed $value,
-            Closure $fail,
-        ) use ($memoized): void {
-            /** @var Closure(string): PotentiallyTranslatedString $fail */
-            try {
-                $memoized($value);
-            } catch (Throwable) {
-                $fail('validation.in')->translate();
-            }
-        };
 
-        return [[$rule], $memoized];
+        return [[], $memoized];
     }
 
     /**

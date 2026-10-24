@@ -163,29 +163,18 @@ final class ScopeReflectorTest extends TestCase
         self::assertSame('statuts', $statuses->attribute);
     }
 
-    public function testClosureCastFailureIsAValidationRule(): void
+    public function testClosureCastIsCheckedAfterTheRules(): void
     {
         $config = new ScopeConfig('near')->cast(
             lat: fn (mixed $v) => throw new RuntimeException(),
             lng: Type::Float,
         );
-        [$lat] = $this->arguments($config);
-        $rule = $lat->rules[0];
-        $failed = false;
-        $fail = function () use (&$failed): object {
-            $failed = true;
 
-            return new class {
-                public function translate(): void {}
-            };
-        };
+        [$lat, $lng] = $this->arguments($config);
 
-        if ($rule instanceof Closure) {
-            $rule('lat', 'x', $fail);
-        }
-
-        self::assertInstanceOf(Closure::class, $rule);
-        self::assertTrue($failed);
+        self::assertSame([], $lat->rules);
+        self::assertInstanceOf(Closure::class, $lat->check);
+        self::assertNull($lng->check);
     }
 
     public function testContextArgument(): void

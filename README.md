@@ -330,7 +330,11 @@ $scope->scope('priced')
   that is itself an array is rejected.
 - `cast()` is required for an untyped, `mixed`, union, non-backed enum or
   any other class parameter.
-- A `cast()` closure that throws an exception yields a validation error.
+- A `cast()` closure only runs once the rules of its argument passed,
+  `nested()` included, and receives the request value: it builds an object
+  from a validated structure, e.g.
+  `cast(range: fn (array $v) => new Range((int) $v['min'], (int) $v['max']))`.
+  If it throws an exception, that is a validation error.
 - A `default()` value can be fixed or a closure. A mutable date (`now()`) is
   converted to the class expected by the scope.
 
