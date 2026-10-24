@@ -1,0 +1,60 @@
+name: "Bug Report"
+description: "Create a report to help us improve"
+labels: ["Type: Bug", "Status: Need Triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to fill out this bug report!
+
+  - type: textarea
+    id: version
+    attributes:
+      label: Version
+      description: Version of Query Builder, Laravel, PHP and database
+      placeholder: |
+        - Query Builder 0.y.z
+        - Laravel 13.y.z
+        - PHP 8.y.z
+        - Database: MySQL / PostgreSQL / SQLite
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: "Description"
+      description: "Describe what you wanted to do."
+      placeholder: |
+        I am trying to filter articles by...
+        I sent the following query string...
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: "Reproduction"
+      description: "Provide the query declaration and the query string that cause the error."
+      placeholder: |
+        ```php
+        <?php
+
+        public function filter(FilterInterface $filter): void
+        {
+            $filter->filter('title')->type(Type::String);
+        }
+        ```
+
+        `?title[value]=foo&title[mode]=like`
+    validations:
+      required: false
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: "Expected"
+      description: "Explain what you expected."
+      placeholder: "I expected the query to..."
+    validations:
+      required: false

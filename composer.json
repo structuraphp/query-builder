@@ -1,0 +1,43 @@
+{
+    "name": "structuraphp/query-builder",
+    "description": "Turns HTTP query strings into Eloquent queries: filters, scopes, sorting, relations and pagination",
+    "keywords": ["laravel", "eloquent", "query-builder", "query-string", "filter", "sort", "pagination"],
+    "type": "library",
+    "require": {
+        "php": "^8.4",
+        "ext-filter": "*",
+        "laravel/framework": "^13.0",
+        "nesbot/carbon": "^3.0"
+    },
+    "require-dev": {
+        "friendsofphp/php-cs-fixer": "^3.94",
+        "infection/infection": "^0.32",
+        "orchestra/testbench-core": "^11.0",
+        "phpstan/phpstan": "^2.1",
+        "phpstan/phpstan-phpunit": "^2.0",
+        "phpstan/phpstan-strict-rules": "^2.0",
+        "phpunit/phpunit": "^11.5|^12.5|^13.0",
+        "rector/rector": "^2.3",
+        "shipmonk/composer-dependency-analyser": "^1.8"
+    },
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "StructuraPhp\\QueryBuilder\\": "src/"
+        }
+    },
+    "config": {
+        "optimize-autoloader": true,
+        "preferred-install": "dist",
+        "sort-packages": true,
+        "allow-plugins": {
+            "bamarni/composer-bin-plugin": false,
+            "infection/extension-installer": false
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Tests\\StructuraPhp\\QueryBuilder\\": "tests/"
+        }
+    }
+}

@@ -1,0 +1,118 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  LATEST_PHP_VERSION: '8.5'
+
+jobs:
+  ci:
+    name: Tests PHP ${{ matrix.php-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php-version: ['8.4', '8.5']
+
+    steps:
+      - name: Pull repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@accd6127cb78bee3e8082180cb391013d204ef9f # v2.37.0
+        with:
+          php-version: ${{ matrix.php-version }}
+          tools: composer
+          extensions: pdo_sqlite
+          coverage: none
+
+      - name: Validate composer.json and composer.lock
+        run: composer validate --strict
+
+      - name: Cache Composer packages
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+        with:
+          path: vendor
+          key: ${{ runner.os }}-php-${{ matrix.php-version }}-${{ hashFiles('**/composer.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-php-${{ matrix.php-version }}-
+
+      - name: Install dependencies with Composer
+        run: composer install -q --no-ansi --no-interaction --no-scripts --no-progress --prefer-dist
+
+      - name: Security audit
+        if: matrix.php-version == env.LATEST_PHP_VERSION
+        run: composer audit
+
+      - name: PSR-4 autoloading
+        if: matrix.php-version == env.LATEST_PHP_VERSION
+        run: composer dump-autoload --optimize --strict-psr --no-scripts
+
+      - name: Dependencies tests
+        if: matrix.php-version == env.LATEST_PHP_VERSION
+        run: vendor/bin/composer-dependency-analyser
+
+      - name: Coding standards
+        if: matrix.php-version == env.LATEST_PHP_VERSION
+        run: vendor/bin/php-cs-fixer fix --ansi --dry-run --using-cache=no -v --diff
+
+      - name: Line length
+        if: matrix.php-version == env.LATEST_PHP_VERSION
+        run: make line-length
+
+      - name: No PHPStan baseline
+        if: matrix.php-version == env.LATEST_PHP_VERSION
+        run: |
+          if [ -f phpstan-baseline.neon ]; then
+            echo "::error::phpstan-baseline.neon forbidden: fix the errors instead of hiding them"
+            exit 1
+          fi
+
+      - name: Static analysis
+        if: matrix.php-version == env.LATEST_PHP_VERSION
+        run: vendor/bin/phpstan --memory-limit=1G analyse --error-format=github
+
+      - name: Refactoring
+        if: matrix.php-version == env.LATEST_PHP_VERSION
+        run: vendor/bin/rector process --dry-run
+
+      - name: Unit tests
+        run: vendor/bin/phpunit --testdox --random-order
+
+  release:
+    name: Release
+    needs: ci
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Bump version and push tag
+        id: tag_version
+        uses: mathieudutour/github-tag-action@a22cf08638b34d5badda920f9daf6e72c477b07b # v6.2.0
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          tag_prefix: ''
+
+      - name: Create GitHub release
+        uses: ncipollo/release-action@339a81892b84b4eeb0f6e744e4574d79d0d9b8dd # v1.21.0
+        with:
+          tag: ${{ steps.tag_version.outputs.new_tag }}
+          name: Release ${{ steps.tag_version.outputs.new_tag }}
+          body: ${{ steps.tag_version.outputs.changelog }}
+          allowUpdates: true

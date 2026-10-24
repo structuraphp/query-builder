@@ -1,0 +1,42 @@
+<?php
+
+declare(strict_types=1);
+
+namespace StructuraPhp\QueryBuilder\Contract\Config;
+
+use BackedEnum;
+use Closure;
+use StructuraPhp\QueryBuilder\Enum\Type;
+
+/**
+ * Every variadic method takes named arguments only, keyed by the scope's
+ * parameter names.
+ */
+interface ScopeConfigInterface
+{
+    public function method(string $method): static;
+
+    /**
+     * @param class-string<BackedEnum>|Closure(mixed): mixed|Type ...$casts
+     */
+    public function cast(Closure|string|Type ...$casts): static;
+
+    public function default(mixed ...$defaults): static;
+
+    /**
+     * @param list<mixed> ...$rules
+     */
+    public function rules(array ...$rules): static;
+
+    /**
+     * @param list<mixed> ...$rules
+     */
+    public function each(array ...$rules): static;
+
+    /**
+     * @param array<string, string> ...$messages
+     */
+    public function messages(array ...$messages): static;
+
+    public function attribute(string ...$attributes): static;
+}
