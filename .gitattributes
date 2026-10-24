@@ -2,6 +2,7 @@
 
 # directories
 /.github export-ignore
+/docs export-ignore
 /tests export-ignore
 
 # files
