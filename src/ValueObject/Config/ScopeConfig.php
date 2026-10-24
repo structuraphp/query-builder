@@ -17,6 +17,9 @@ final class ScopeConfig implements ScopeConfigInterface
 {
     public private(set) ?string $method = null;
 
+    /** @var list<string> */
+    public private(set) array $context = [];
+
     /** @var array<string, CastType> */
     public private(set) array $casts = [];
 
@@ -42,6 +45,13 @@ final class ScopeConfig implements ScopeConfigInterface
     public function method(string $method): static
     {
         $this->method = $method;
+
+        return $this;
+    }
+
+    public function context(string ...$names): static
+    {
+        $this->context = [...$this->context, ...array_values($names)];
 
         return $this;
     }

@@ -64,12 +64,17 @@ final readonly class QueryParameters
     }
 
     /**
+     * @param array<string, array<string, mixed>> $context scope arguments
+     *                                                     declared with
+     *                                                     context(), by
+     *                                                     scope name
+     *
      * @return Builder<Model>
      */
-    public function builder(): Builder
+    public function builder(array $context = []): Builder
     {
         return new QueryApplier($this->definition)
-            ->apply($this->validated, $this->input);
+            ->apply($this->validated, $this->input, $context);
     }
 
     /**

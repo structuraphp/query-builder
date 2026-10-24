@@ -6,6 +6,7 @@ namespace Tests\StructuraPhp\QueryBuilder\Fixtures;
 
 use Carbon\Carbon;
 use Carbon\CarbonImmutable;
+use Closure;
 use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -97,6 +98,35 @@ class Article extends Model
     public function scopeUnion(Builder $query, int|string $value): void
     {
         $query->where('views', $value);
+    }
+
+    /**
+     * @param Builder<self> $query
+     */
+    public function scopeOwnedBy(
+        Builder $query,
+        string $status,
+        Author $author,
+    ): void {
+        $query->where('status', $status)->where('author_id', $author->getKey());
+    }
+
+    /**
+     * @param Builder<self> $query
+     * @param list<int> $ids
+     */
+    public function scopeAmong(Builder $query, array $ids): void
+    {
+        $query->getQuery()->whereIn('id', $ids);
+    }
+
+    /**
+     * @param Builder<self> $query
+     * @param Closure(Builder<self>): void $callback
+     */
+    public function scopeTapped(Builder $query, Closure $callback): void
+    {
+        $callback($query);
     }
 
     /**

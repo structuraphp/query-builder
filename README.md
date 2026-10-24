@@ -314,6 +314,38 @@ $scope->scope('priced')
 - A `default()` value can be fixed or a closure. A mutable date (`now()`) is
   converted to the class expected by the scope.
 
+### Context
+
+Some scope arguments must come from the code, never from the client: the
+current user, ids computed by a service… Declare them with `context()`:
+
+```php
+// scopeForUser(Builder $query, string $search, User $user, array $groupIds)
+$scope->scope('forUser')->context('user', 'groupIds');
+```
+
+The URL only carries `search` (`?forUser[search]=foo`): a `forUser[user]`
+key sent by the client is ignored. The code gives the context, by scope name,
+when building the query:
+
+```php
+$query = $parameters->builder(context: [
+    'forUser' => [
+        'user' => $user,
+        'groupIds' => fn () => $groups->idsFor($user),
+    ],
+]);
+```
+
+- A closure is only called if the client requested the scope, unless the
+  parameter itself is typed `Closure` or `callable`.
+- A scope whose arguments all come from the context is a boolean toggle:
+  `?mine=1` for `scopeMine(Builder $query, User $user)`.
+- `default()` or the PHP default replaces a missing context; otherwise
+  applying the scope throws a `LogicException`.
+- A context key for an undeclared scope, or for an argument not declared with
+  `context()`, throws an `InvalidArgumentException`.
+
 ### Sorting
 
 ```php
@@ -355,6 +387,8 @@ is read, before the client input is validated:
 - filter without `type()`;
 - scope or relation that does not exist on the model;
 - scope option for an argument that does not exist, or passed without a name;
+- `cast()`, `rules()`, `each()`, `messages()` or `attribute()` on a context
+  argument;
 - scope parameter neither typed nor cast, or `cast()` that is not a `Type`,
   a backed enum or a closure;
 - undeclared default sort or direction other than `asc`/`desc`;

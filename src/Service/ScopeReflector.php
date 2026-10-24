@@ -41,15 +41,18 @@ final class ScopeReflector
         );
 
         $options = [
-            $config->casts,
-            $config->defaults,
-            $config->rules,
-            $config->each,
-            $config->messages,
-            $config->attributes,
+            $config->context,
+            ...array_map(array_keys(...), [
+                $config->casts,
+                $config->defaults,
+                $config->rules,
+                $config->each,
+                $config->messages,
+                $config->attributes,
+            ]),
         ];
         foreach ($options as $option) {
-            foreach (array_diff(array_keys($option), $names) as $unknown) {
+            foreach (array_diff($option, $names) as $unknown) {
                 throw new ConfigurationException(\sprintf(
                     'Scope "%s" has no argument "%s".',
                     $config->name,
@@ -97,6 +100,10 @@ final class ScopeReflector
     ): ScopeArgument {
         $name = $parameter->name;
 
+        if (\in_array($name, $config->context, true)) {
+            return $this->contextArgument($config, $parameter);
+        }
+
         [$rules, $cast] = isset($config->casts[$name])
             ? $this->fromCast($config, $name, $config->casts[$name])
             : $this->fromType($config, $parameter);
@@ -109,6 +116,51 @@ final class ScopeReflector
             attribute: $config->attributes[$name] ?? null,
             cast: $cast,
             default: $this->default($config, $parameter),
+        );
+    }
+
+    /**
+     * The code gives the value as is, or a closure resolved only when the
+     * scope is applied, unless the scope itself expects a closure.
+     */
+    private function contextArgument(
+        ScopeConfig $config,
+        ReflectionParameter $parameter,
+    ): ScopeArgument {
+        $name = $parameter->name;
+        $options = [
+            'cast' => $config->casts,
+            'rules' => $config->rules,
+            'each' => $config->each,
+            'messages' => $config->messages,
+            'attribute' => $config->attributes,
+        ];
+        foreach ($options as $option => $values) {
+            if (\array_key_exists($name, $values)) {
+                throw new ConfigurationException(\sprintf(
+                    'Scope "%s" argument "%s" comes from the context: it'
+                    . ' takes no %s().',
+                    $config->name,
+                    $name,
+                    $option,
+                ));
+            }
+        }
+
+        $type = $this->typeName($parameter);
+        $lazy = !\in_array($type, [Closure::class, 'callable'], true);
+
+        return new ScopeArgument(
+            name: $name,
+            rules: [],
+            each: [],
+            messages: [],
+            attribute: null,
+            cast: fn (mixed $value): mixed => $lazy && $value instanceof Closure
+                ? $value()
+                : $value,
+            default: $this->default($config, $parameter),
+            context: true,
         );
     }
 

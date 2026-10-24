@@ -66,7 +66,7 @@ final readonly class ValidationCompiler
         }
 
         foreach ($this->definition->scopes as $name => [, $arguments]) {
-            foreach ($arguments as $argument) {
+            foreach (QueryApplier::fromRequest($arguments) as $argument) {
                 $key = "{$name}.{$argument->name}";
                 $attributes[$key] = $argument->attribute ?? $key;
             }
@@ -82,6 +82,7 @@ final readonly class ValidationCompiler
     {
         $rules = [];
         foreach ($this->definition->scopes as $name => [, $arguments]) {
+            $arguments = QueryApplier::fromRequest($arguments);
             if ($arguments === []) {
                 $rules[$name] = ['sometimes', 'required', 'boolean'];
 

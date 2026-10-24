@@ -7,6 +7,7 @@ namespace StructuraPhp\QueryBuilder\Service;
 use Closure;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use InvalidArgumentException;
 use LogicException;
 use StructuraPhp\QueryBuilder\Enum\Mode;
 use StructuraPhp\QueryBuilder\Enum\Type;
@@ -22,15 +23,22 @@ final readonly class QueryApplier
      * @param array<string, mixed> $validated
      * @param array<string, mixed> $input raw request data, only used to
      *                                    detect requested scopes
+     * @param array<string, array<string, mixed>> $context scope arguments
+     *                                                     given by the code
      *
      * @return Builder<Model>
      */
-    public function apply(array $validated, array $input = []): Builder
-    {
+    public function apply(
+        array $validated,
+        array $input = [],
+        array $context = [],
+    ): Builder {
+        $this->assertContext($context);
+
         $query = $this->definition->model->newQuery();
 
         $this->applyFilters($query, $validated);
-        $this->applyScopes($query, $validated, $input);
+        $this->applyScopes($query, $validated, $input, $context);
         $this->applySorts($query, $validated);
         $this->applyRelations($query, $validated);
 
@@ -48,6 +56,50 @@ final readonly class QueryApplier
             $names,
             fn (string $name): bool => $name !== '',
         ));
+    }
+
+    /**
+     * @param list<ScopeArgument> $arguments
+     *
+     * @return list<ScopeArgument>
+     */
+    public static function fromRequest(array $arguments): array
+    {
+        return array_values(array_filter(
+            $arguments,
+            fn (ScopeArgument $argument): bool => !$argument->context,
+        ));
+    }
+
+    /**
+     * Context is checked even when its scope is not requested, so a typo
+     * shows up at once.
+     *
+     * @param array<string, array<string, mixed>> $context
+     */
+    private function assertContext(array $context): void
+    {
+        foreach ($context as $scope => $values) {
+            $arguments = $this->definition->scopes[$scope][1] ?? null;
+            if ($arguments === null) {
+                throw new InvalidArgumentException(
+                    "Scope {$scope} is not declared.",
+                );
+            }
+
+            $names = array_map(
+                fn (ScopeArgument $argument): string => $argument->name,
+                array_filter(
+                    $arguments,
+                    fn (ScopeArgument $argument): bool => $argument->context,
+                ),
+            );
+            foreach (array_diff(array_keys($values), $names) as $unknown) {
+                throw new InvalidArgumentException(
+                    "Scope {$scope} has no context argument {$unknown}.",
+                );
+            }
+        }
     }
 
     /**
@@ -83,30 +135,36 @@ final readonly class QueryApplier
      * @param Builder<Model> $query
      * @param array<string, mixed> $validated
      * @param array<string, mixed> $input
+     * @param array<string, array<string, mixed>> $context
      */
     private function applyScopes(
         Builder $query,
         array $validated,
         array $input,
+        array $context,
     ): void {
         $scopes = $this->definition->scopes;
         foreach ($scopes as $name => [$config, $arguments]) {
+            $fromRequest = self::fromRequest($arguments);
             // validated() drops a scope whose sub-keys are all unknown or
             // omitted, yet it was still requested.
             $requested = \array_key_exists($name, $validated)
-                || ($arguments !== [] && \is_array($input[$name] ?? null));
+                || ($fromRequest !== [] && \is_array($input[$name] ?? null));
             if (!$requested) {
                 continue;
             }
 
             $given = $validated[$name] ?? [];
             $enabled = filter_var($given, FILTER_VALIDATE_BOOLEAN);
-            if ($arguments === [] && !$enabled) {
+            if ($fromRequest === [] && !$enabled) {
                 continue;
             }
 
             $values = array_map(
-                fn (ScopeArgument $arg): mixed => $this->argument($arg, $given),
+                fn (ScopeArgument $arg): mixed => $this->argument(
+                    $arg,
+                    $arg->context ? $context[$name] ?? [] : $given,
+                ),
                 $arguments,
             );
 

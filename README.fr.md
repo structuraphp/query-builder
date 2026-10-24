@@ -317,6 +317,39 @@ $scope->scope('priced')
 - Une valeur de `default()` peut être fixe ou une closure. Une date mutable
   (`now()`) est convertie dans la classe attendue par le scope.
 
+### Contexte
+
+Certains arguments de scope doivent venir du code, jamais du client :
+l'utilisateur courant, des identifiants calculés par un service… On les
+déclare avec `context()` :
+
+```php
+// scopeForUser(Builder $query, string $search, User $user, array $groupIds)
+$scope->scope('forUser')->context('user', 'groupIds');
+```
+
+L'URL ne porte que `search` (`?forUser[search]=foo`) : une clé
+`forUser[user]` envoyée par le client est ignorée. Le code fournit le
+contexte, par nom de scope, au moment de construire la requête :
+
+```php
+$query = $parameters->builder(context: [
+    'forUser' => [
+        'user' => $user,
+        'groupIds' => fn () => $groups->idsFor($user),
+    ],
+]);
+```
+
+- Une closure n'est appelée que si le client a demandé le scope, sauf si le
+  paramètre est lui-même typé `Closure` ou `callable`.
+- Un scope dont tous les arguments viennent du contexte est un interrupteur
+  booléen : `?mine=1` pour `scopeMine(Builder $query, User $user)`.
+- `default()` ou la valeur par défaut PHP remplace un contexte manquant ;
+  sinon, l'application du scope lève une `LogicException`.
+- Une clé de contexte pour un scope non déclaré, ou pour un argument non
+  déclaré avec `context()`, lève une `InvalidArgumentException`.
+
 ### Tri
 
 ```php
@@ -358,6 +391,8 @@ query est lue, avant la validation des données du client :
 - filtre sans `type()` ;
 - scope ou relation inexistants sur le modèle ;
 - option de scope pour un argument qui n'existe pas, ou passée sans nom ;
+- `cast()`, `rules()`, `each()`, `messages()` ou `attribute()` sur un
+  argument de contexte ;
 - paramètre de scope ni typé ni casté, ou `cast()` qui n'est ni un `Type`,
   ni un enum backed, ni une closure ;
 - tri par défaut non déclaré ou direction autre que `asc`/`desc` ;

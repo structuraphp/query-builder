@@ -15,6 +15,7 @@ final readonly class ScopeArgument
      * @param array<string, string> $messages
      * @param Closure(mixed): mixed $cast
      * @param null|(Closure(): mixed) $default null when required
+     * @param bool $context given by the code, never read from the request
      */
     public function __construct(
         public string $name,
@@ -24,5 +25,6 @@ final readonly class ScopeArgument
         public ?string $attribute,
         public Closure $cast,
         public ?Closure $default,
+        public bool $context = false,
     ) {}
 }

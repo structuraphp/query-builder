@@ -188,6 +188,17 @@ final class ScopeReflectorTest extends TestCase
         self::assertTrue($failed);
     }
 
+    public function testContextArgument(): void
+    {
+        $config = new ScopeConfig('ownedBy')->context('author');
+
+        [$status, $author] = $this->arguments($config);
+
+        self::assertFalse($status->context);
+        self::assertTrue($author->context);
+        self::assertSame([], $author->rules);
+    }
+
     /**
      * @param Closure(): ScopeConfig $config
      */
@@ -233,6 +244,40 @@ final class ScopeReflectorTest extends TestCase
         ];
 
         yield 'union type' => [fn (): ScopeConfig => new ScopeConfig('union')];
+
+        yield 'unknown context argument' => [
+            fn (): ScopeConfig => new ScopeConfig('ownedBy')->context('foo'),
+        ];
+
+        yield 'rules on a context argument' => [
+            fn (): ScopeConfig => new ScopeConfig('ownedBy')
+                ->context('author')
+                ->rules(author: ['required']),
+        ];
+
+        yield 'cast on a context argument' => [
+            fn (): ScopeConfig => new ScopeConfig('ownedBy')
+                ->context('author')
+                ->cast(author: Type::Integer),
+        ];
+
+        yield 'each on a context argument' => [
+            fn (): ScopeConfig => new ScopeConfig('among')
+                ->context('ids')
+                ->each(ids: ['integer']),
+        ];
+
+        yield 'messages on a context argument' => [
+            fn (): ScopeConfig => new ScopeConfig('ownedBy')
+                ->context('author')
+                ->messages(author: ['required' => 'Foo.']),
+        ];
+
+        yield 'attribute on a context argument' => [
+            fn (): ScopeConfig => new ScopeConfig('ownedBy')
+                ->context('author')
+                ->attribute(author: 'auteur'),
+        ];
 
         yield 'cast to non enum class' => [
             fn (): ScopeConfig => new ScopeConfig('near')->cast(
