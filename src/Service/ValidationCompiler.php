@@ -147,12 +147,20 @@ final readonly class ValidationCompiler
             return ['sort' => ['prohibited']];
         }
 
-        $names = implode(',', array_keys($this->definition->sorts));
+        $names = array_keys($this->definition->sorts);
 
-        return [
-            'sort' => ['sometimes', 'array:' . $names],
-            'sort.*' => ['required', Rule::in(['asc', 'desc'])],
-        ];
+        // One rule per key rather than `sort.*`, so documentation generators
+        // list each sort.
+        $rules = ['sort' => ['sometimes', 'array:' . implode(',', $names)]];
+        foreach ($names as $name) {
+            $rules["sort.{$name}"] = [
+                'sometimes',
+                'required',
+                Rule::in(['asc', 'desc']),
+            ];
+        }
+
+        return $rules;
     }
 
     /**

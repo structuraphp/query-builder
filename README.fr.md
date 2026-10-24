@@ -168,6 +168,13 @@ $page = $parameters->paginate($parameters->builder());
 - Laravel 13
 - Moteurs supportés : MySQL, PostgreSQL, SQLite
 
+## Avec Scramble
+
+[Scramble](https://scramble.dedoc.co) documente une `QueryRequest` comme
+n'importe quelle form request : filtres, scopes, tris et pagination
+deviennent des paramètres de query (`title[value]`, `sort[date]`…). Les
+arguments de contexte restent cachés.
+
 ## Format de l'URL
 
 ### Filtres

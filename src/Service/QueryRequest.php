@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace StructuraPhp\QueryBuilder\Service;
 
+use Illuminate\Container\Container;
 use Illuminate\Contracts\Validation\Factory as ValidationFactory;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
@@ -37,10 +38,14 @@ abstract class QueryRequest extends FormRequest
      */
     abstract protected function getQuery(): string;
 
+    /**
+     * Not `$this->container`: documentation generators (Scramble) build the
+     * request with `new`, without setting it.
+     */
     protected function definition(): Definition
     {
         return $this->definition ??= Definition::fromQuery(
-            $this->container->make($this->getQuery()),
+            Container::getInstance()->make($this->getQuery()),
         );
     }
 
