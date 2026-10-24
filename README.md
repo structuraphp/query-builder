@@ -285,10 +285,15 @@ $filter->filter('statut')               // public name, in the URL
 
 ### Scopes
 
-The scope is a `scopeXxx()` or a `#[Scope]` method of the model. Arguments
-are converted according to the signature: `int`, `float`, `bool`, `string`,
-`array`, backed enum (`::from()`), `CarbonImmutable` or `Carbon` (`Y-m-d`
-format).
+The scope is a `scopeXxx()` or a `#[Scope]` method of the model, or a public
+method of the model's custom builder (`newEloquentBuilder()` or
+`#[UseEloquentBuilder]`). Arguments are converted according to the
+signature: `int`, `float`, `bool`, `string`, `array`, backed enum
+(`::from()`), `CarbonImmutable` or `Carbon` (`Y-m-d` format).
+
+Like in Laravel, a builder method wins over a model scope of the same name,
+and its wheres are not grouped: wrap its `OR` conditions in a `where()`
+closure. Eloquent's own builder methods (`delete()`…) are never scopes.
 
 All options are written as **named arguments**, by parameter name:
 
@@ -432,6 +437,6 @@ is read, before the client input is validated:
 - No aliases for relations.
 - No filter on a relation column (`author.name`), no `OR` groups, no `in`
   mode: use a scope.
-- Scopes defined on a custom Builder or as macros are not supported.
+- Scopes defined as builder macros are not supported.
 - An integer value outside the column range (PostgreSQL `int4`) is not
   detected: add a `max:` rule to the filter.

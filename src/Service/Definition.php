@@ -38,7 +38,11 @@ final class Definition
     /** @var array<string, FilterConfig> */
     public private(set) array $filters = [];
 
-    /** @var array<string, array{ScopeConfig, list<ScopeArgument>}> */
+    /**
+     * The flag tells a method of the model's builder from a model scope.
+     *
+     * @var array<string, array{ScopeConfig, list<ScopeArgument>, bool}>
+     */
     public private(set) array $scopes = [];
 
     /** @var array<string, SortConfig> */
@@ -88,6 +92,7 @@ final class Definition
                 $definition->scopes[$config->name] = [
                     $config,
                     $reflector->arguments($definition->model, $config),
+                    $reflector->onBuilder($definition->model, $config),
                 ];
             }
         }
@@ -122,7 +127,7 @@ final class Definition
      */
     public function assertName(string $name): void
     {
-        self::assertValidName($name);
+        $this->assertValidName($name);
 
         if (in_array($name, self::RESERVED, true)) {
             throw new ConfigurationException(\sprintf(
@@ -160,7 +165,7 @@ final class Definition
         }
     }
 
-    private static function assertValidName(string $name): void
+    private function assertValidName(string $name): void
     {
         if (preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/', $name) !== 1) {
             throw new ConfigurationException(\sprintf(
@@ -187,7 +192,7 @@ final class Definition
     private function addSort(Sort $sort): void
     {
         foreach ($sort->sorts as $config) {
-            self::assertValidName($config->name);
+            $this->assertValidName($config->name);
 
             if (isset($this->sorts[$config->name])) {
                 throw new ConfigurationException(\sprintf(

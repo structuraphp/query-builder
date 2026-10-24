@@ -288,10 +288,16 @@ $filter->filter('statut')               // nom public, dans l'URL
 
 ### Scopes
 
-Le scope est un `scopeXxx()` ou une méthode `#[Scope]` du modèle. Les
-arguments sont convertis d'après la signature : `int`, `float`, `bool`,
-`string`, `array`, enum backed (`::from()`), `CarbonImmutable` ou `Carbon`
-(format `Y-m-d`).
+Le scope est un `scopeXxx()` ou une méthode `#[Scope]` du modèle, ou une
+méthode publique du Builder personnalisé du modèle (`newEloquentBuilder()`
+ou `#[UseEloquentBuilder]`). Les arguments sont convertis d'après la
+signature : `int`, `float`, `bool`, `string`, `array`, enum backed
+(`::from()`), `CarbonImmutable` ou `Carbon` (format `Y-m-d`).
+
+Comme dans Laravel, une méthode du Builder l'emporte sur un scope du modèle
+du même nom, et ses `where` ne sont pas regroupés : encadrez ses conditions
+`OR` dans une closure `where()`. Les méthodes propres à Eloquent
+(`delete()`…) ne sont jamais des scopes.
 
 Toutes les options s'écrivent en **arguments nommés**, par nom de paramètre :
 
@@ -437,7 +443,6 @@ query est lue, avant la validation des données du client :
 - Pas d'alias pour les relations.
 - Pas de filtre sur une colonne de relation (`author.name`), pas de groupes
   `OR`, pas de mode `in` : passez par un scope.
-- Les scopes définis sur un Builder personnalisé ou en macro ne sont pas
-  supportés.
+- Les scopes définis en macro du Builder ne sont pas supportés.
 - Une valeur entière hors de la plage de la colonne (`int4` PostgreSQL) n'est
   pas détectée : ajoutez une règle `max:` au filtre.

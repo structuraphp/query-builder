@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 use InvalidArgumentException;
 use LogicException;
 use ReflectionFunction;
+use ReflectionMethod;
 use StructuraPhp\QueryBuilder\Enum\Mode;
 use StructuraPhp\QueryBuilder\Enum\Type;
 use StructuraPhp\QueryBuilder\ValueObject\ScopeArgument;
@@ -145,7 +146,7 @@ final readonly class QueryApplier
         array $context,
     ): void {
         $scopes = $this->definition->scopes;
-        foreach ($scopes as $name => [$config, $arguments]) {
+        foreach ($scopes as $name => [$config, $arguments, $onBuilder]) {
             $fromRequest = self::fromRequest($arguments);
             // validated() drops a scope whose sub-keys are all unknown or
             // omitted, yet it was still requested.
@@ -174,7 +175,15 @@ final readonly class QueryApplier
                 $arguments,
             );
 
-            $query->scopes([$config->method ?? $config->name => $values]);
+            $method = $config->method ?? $config->name;
+            if ($onBuilder) {
+                // Called as is, like Laravel does: unlike a model scope, its
+                // wheres are not grouped.
+                $reflection = new ReflectionMethod($query, $method);
+                $reflection->invoke($query, ...$values);
+            } else {
+                $query->scopes([$method => $values]);
+            }
         }
     }
 

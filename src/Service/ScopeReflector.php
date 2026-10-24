@@ -10,6 +10,7 @@ use Carbon\CarbonImmutable;
 use Closure;
 use DateTimeInterface;
 use Illuminate\Database\Eloquent\Attributes\Scope as ScopeAttribute;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Translation\PotentiallyTranslatedString;
 use Illuminate\Validation\Rule;
@@ -33,7 +34,9 @@ final class ScopeReflector
     public function arguments(Model $model, ScopeConfig $config): array
     {
         $method = $this->method($model, $config);
-        $parameters = \array_slice($method->getParameters(), 1);
+        // A model scope receives the query first, a builder method does not.
+        $offset = $this->onBuilder($model, $config) ? 0 : 1;
+        $parameters = \array_slice($method->getParameters(), $offset);
         $names = array_map(
             fn (ReflectionParameter $parameter): string => $parameter->name,
             $parameters,
@@ -69,10 +72,49 @@ final class ScopeReflector
         );
     }
 
+    /**
+     * Like Laravel, a method of the model's own builder wins over a model
+     * scope of the same name.
+     */
+    public function onBuilder(Model $model, ScopeConfig $config): bool
+    {
+        $method = $this->builderMethod($model, $config);
+
+        return $method instanceof ReflectionMethod;
+    }
+
+    /**
+     * Only a public method declared by a custom builder: Eloquent's own
+     * methods (`delete()`…) are never scopes.
+     */
+    private function builderMethod(
+        Model $model,
+        ScopeConfig $config,
+    ): ?ReflectionMethod {
+        $method = $config->method ?? $config->name;
+        $builder = $model->newModelQuery();
+        if (!method_exists($builder, $method)) {
+            return null;
+        }
+
+        $reflection = new ReflectionMethod($builder, $method);
+        $declaring = $reflection->getDeclaringClass();
+        $custom = $declaring->isSubclassOf(Builder::class);
+
+        return $custom && $reflection->isPublic() && !$reflection->isStatic()
+            ? $reflection
+            : null;
+    }
+
     private function method(
         Model $model,
         ScopeConfig $config,
     ): ReflectionMethod {
+        $builderMethod = $this->builderMethod($model, $config);
+        if ($builderMethod instanceof ReflectionMethod) {
+            return $builderMethod;
+        }
+
         $method = $config->method ?? $config->name;
         $prefixed = 'scope' . ucfirst($method);
 

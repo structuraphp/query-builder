@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\StructuraPhp\QueryBuilder\Fixtures\Queries;
 
 use Closure;
+use Illuminate\Database\Eloquent\Model;
 use StructuraPhp\QueryBuilder\Contract\Config\FilterInterface;
 use StructuraPhp\QueryBuilder\Contract\Config\PaginationInterface;
 use StructuraPhp\QueryBuilder\Contract\Config\RelationInterface;
@@ -36,6 +37,7 @@ final readonly class ConfigurableQuery implements
      * @param null|(Closure(RelationInterface): void) $relation
      * @param null|(Closure(ScopeInterface): void) $scope
      * @param null|(Closure(SortInterface): void) $sort
+     * @param class-string<Model> $model
      */
     public function __construct(
         private ?Closure $filter = null,
@@ -43,11 +45,12 @@ final readonly class ConfigurableQuery implements
         private ?Closure $relation = null,
         private ?Closure $scope = null,
         private ?Closure $sort = null,
+        private string $model = Article::class,
     ) {}
 
     public function getModel(): string
     {
-        return Article::class;
+        return $this->model;
     }
 
     public function filter(FilterInterface $filter): void
