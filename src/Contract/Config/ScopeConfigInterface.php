@@ -40,6 +40,13 @@ interface ScopeConfigInterface
     public function each(array ...$rules): static;
 
     /**
+     * Laravel rules by dot path inside the argument (`*.min`, `geo.lat`).
+     *
+     * @param array<string, list<mixed>> ...$rules
+     */
+    public function nested(array ...$rules): static;
+
+    /**
      * @param array<string, string> ...$messages
      */
     public function messages(array ...$messages): static;

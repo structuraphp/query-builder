@@ -307,6 +307,14 @@ $scope->scope('ofTags')
     ->rules(tags: ['max:10'])           // le tableau entier
     ->each(tags: ['string']);           // chaque élément
 
+$scope->scope('inRanges')               // toute structure, comme Laravel
+    ->nested(ranges: [
+        '*' => ['array:min,max'],
+        '*.min' => ['required', 'integer'],
+        '*.max' => ['required', 'integer', 'gte:inRanges.ranges.*.min'],
+    ])
+    ->messages(ranges: ['*.min.required' => 'Min obligatoire.']);
+
 $scope->scope('near')                   // paramètres non typés
     ->cast(lat: Type::Float, lng: Type::Float);
 
@@ -317,6 +325,13 @@ $scope->scope('priced')
     ->cast(amount: fn (string $v) => Money::parse($v));
 ```
 
+- `nested()` prend des règles Laravel par chemin pointé dans l'argument
+  (`*.min`, `geo.lat`, `tags.*`), appliquées seulement si l'argument est
+  fourni. Une règle qui cite un autre champ (`gte:`, `required_with:`…)
+  utilise son chemin complet. `each(x: [...])` est un raccourci pour
+  `nested(x: ['*' => [...]])`.
+- Un argument `array` sans `each()` ni `nested()` est une liste plate : un
+  élément qui est lui-même un tableau est rejeté.
 - `cast()` est obligatoire pour un paramètre non typé, `mixed`, union, enum
   non backed ou de toute autre classe.
 - Une closure de `cast()` qui lève une exception donne une erreur de
@@ -403,8 +418,8 @@ query est lue, avant la validation des données du client :
 - filtre sans `type()` ;
 - scope ou relation inexistants sur le modèle ;
 - option de scope pour un argument qui n'existe pas, ou passée sans nom ;
-- `cast()`, `rules()`, `each()`, `messages()` ou `attribute()` sur un
-  argument de contexte ;
+- `cast()`, `rules()`, `each()`, `nested()`, `messages()` ou `attribute()`
+  sur un argument de contexte ;
 - paramètre de scope ni typé ni casté, ou `cast()` qui n'est ni un `Type`,
   ni un enum backed, ni une closure ;
 - tri par défaut non déclaré ou direction autre que `asc`/`desc` ;

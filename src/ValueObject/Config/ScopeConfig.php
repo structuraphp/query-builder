@@ -32,6 +32,9 @@ final class ScopeConfig implements ScopeConfigInterface
     /** @var array<string, list<mixed>> */
     public private(set) array $each = [];
 
+    /** @var array<string, array<string, list<mixed>>> */
+    public private(set) array $nested = [];
+
     /** @var array<string, array<string, string>> */
     public private(set) array $messages = [];
 
@@ -80,6 +83,13 @@ final class ScopeConfig implements ScopeConfigInterface
     public function each(array ...$rules): static
     {
         $this->each = [...$this->each, ...$this->named($rules)];
+
+        return $this;
+    }
+
+    public function nested(array ...$rules): static
+    {
+        $this->nested = [...$this->nested, ...$this->named($rules)];
 
         return $this;
     }

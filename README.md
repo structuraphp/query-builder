@@ -304,6 +304,14 @@ $scope->scope('ofTags')
     ->rules(tags: ['max:10'])           // the whole array
     ->each(tags: ['string']);           // each item
 
+$scope->scope('inRanges')               // any structure, like Laravel
+    ->nested(ranges: [
+        '*' => ['array:min,max'],
+        '*.min' => ['required', 'integer'],
+        '*.max' => ['required', 'integer', 'gte:inRanges.ranges.*.min'],
+    ])
+    ->messages(ranges: ['*.min.required' => 'Min is required.']);
+
 $scope->scope('near')                   // untyped parameters
     ->cast(lat: Type::Float, lng: Type::Float);
 
@@ -314,6 +322,12 @@ $scope->scope('priced')
     ->cast(amount: fn (string $v) => Money::parse($v));
 ```
 
+- `nested()` takes Laravel rules by dot path inside the argument (`*.min`,
+  `geo.lat`, `tags.*`), only applied when the argument is given. A rule that
+  points to another field (`gte:`, `required_with:`…) uses its full path.
+  `each(x: [...])` is a shortcut for `nested(x: ['*' => [...]])`.
+- An `array` argument without `each()` or `nested()` is a flat list: an item
+  that is itself an array is rejected.
 - `cast()` is required for an untyped, `mixed`, union, non-backed enum or
   any other class parameter.
 - A `cast()` closure that throws an exception yields a validation error.
@@ -398,8 +412,8 @@ is read, before the client input is validated:
 - filter without `type()`;
 - scope or relation that does not exist on the model;
 - scope option for an argument that does not exist, or passed without a name;
-- `cast()`, `rules()`, `each()`, `messages()` or `attribute()` on a context
-  argument;
+- `cast()`, `rules()`, `each()`, `nested()`, `messages()` or `attribute()` on
+  a context argument;
 - scope parameter neither typed nor cast, or `cast()` that is not a `Type`,
   a backed enum or a closure;
 - undeclared default sort or direction other than `asc`/`desc`;

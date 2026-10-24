@@ -47,6 +47,7 @@ final class ScopeReflector
                 $config->defaults,
                 $config->rules,
                 $config->each,
+                $config->nested,
                 $config->messages,
                 $config->attributes,
             ]),
@@ -108,15 +109,37 @@ final class ScopeReflector
             ? $this->fromCast($config, $name, $config->casts[$name])
             : $this->fromType($config, $parameter);
 
+        $each = $config->each[$name] ?? [];
+        $nested = $config->nested[$name] ?? [];
+        $flat = $each === []
+            && $nested === []
+            && !isset($config->casts[$name])
+            && $this->typeName($parameter) === 'array';
+
         return new ScopeArgument(
             name: $name,
             rules: [...$rules, ...$config->rules[$name] ?? []],
-            each: $config->each[$name] ?? [],
+            each: $flat ? [$this->flat()] : $each,
             messages: $config->messages[$name] ?? [],
             attribute: $config->attributes[$name] ?? null,
             cast: $cast,
             default: $this->default($config, $parameter),
+            nested: $nested,
         );
+    }
+
+    /**
+     * Without each() or nested(), an array argument is a flat list: a nested
+     * array would reach the scope unchecked.
+     */
+    private function flat(): Closure
+    {
+        return function (string $attribute, mixed $value, Closure $fail): void {
+            /** @var Closure(string): PotentiallyTranslatedString $fail */
+            if (\is_array($value)) {
+                $fail('validation.in')->translate();
+            }
+        };
     }
 
     /**
@@ -133,6 +156,7 @@ final class ScopeReflector
             'cast' => $config->casts,
             'rules' => $config->rules,
             'each' => $config->each,
+            'nested' => $config->nested,
             'messages' => $config->messages,
             'attribute' => $config->attributes,
         ];

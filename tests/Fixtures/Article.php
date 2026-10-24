@@ -135,6 +135,34 @@ class Article extends Model
 
     /**
      * @param Builder<self> $query
+     * @param list<array{min: string, max: string}> $ranges
+     */
+    public function scopeInRanges(Builder $query, array $ranges): void
+    {
+        $query->where(function (Builder $query) use ($ranges): void {
+            foreach ($ranges as $range) {
+                $query->getQuery()->orWhereBetween(
+                    'views',
+                    [$range['min'], $range['max']],
+                );
+            }
+        });
+    }
+
+    /**
+     * @param Builder<self> $query
+     * @param array{min: string, max: string} $range
+     */
+    public function scopeViewsWithin(Builder $query, array $range): void
+    {
+        $query->getQuery()->whereBetween(
+            'views',
+            [$range['min'], $range['max']],
+        );
+    }
+
+    /**
+     * @param Builder<self> $query
      * @param Closure(Builder<self>): void $callback
      */
     public function scopeTapped(Builder $query, Closure $callback): void

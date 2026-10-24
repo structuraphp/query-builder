@@ -98,8 +98,19 @@ final readonly class ValidationCompiler
                     ? ["required_with:{$name}"]
                     : ['sometimes', 'required'];
                 $rules[$key] = [...$presence, ...$argument->rules];
+
+                $nested = $argument->nested;
                 if ($argument->each !== []) {
-                    $rules["{$key}.*"] = $argument->each;
+                    $nested['*'] = [...$argument->each, ...$nested['*'] ?? []];
+                }
+
+                // A nested `required` must not fire when the argument itself
+                // is absent.
+                foreach ($nested as $path => $pathRules) {
+                    $rules["{$key}.{$path}"] = [
+                        "exclude_without:{$key}",
+                        ...$pathRules,
+                    ];
                 }
             }
         }

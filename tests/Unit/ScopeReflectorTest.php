@@ -279,6 +279,24 @@ final class ScopeReflectorTest extends TestCase
                 ->attribute(author: 'auteur'),
         ];
 
+        yield 'unknown nested argument' => [
+            fn (): ScopeConfig => new ScopeConfig('inRanges')->nested(
+                foo: ['*' => ['array']],
+            ),
+        ];
+
+        yield 'positional nested' => [
+            fn (): ScopeConfig => new ScopeConfig('inRanges')->nested([
+                '*' => ['array'],
+            ]),
+        ];
+
+        yield 'nested on a context argument' => [
+            fn (): ScopeConfig => new ScopeConfig('among')
+                ->context('ids')
+                ->nested(ids: ['*' => ['integer']]),
+        ];
+
         yield 'cast to non enum class' => [
             fn (): ScopeConfig => new ScopeConfig('near')->cast(
                 // @phpstan-ignore argument.type
