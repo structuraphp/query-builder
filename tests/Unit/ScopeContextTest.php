@@ -7,12 +7,14 @@ namespace Tests\StructuraPhp\QueryBuilder\Unit;
 use Closure;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
+use InvalidArgumentException;
 use LogicException;
 use RuntimeException;
 use StructuraPhp\QueryBuilder\Contract\Config\ScopeInterface;
 use StructuraPhp\QueryBuilder\ValueObject\QueryParameters;
 use Tests\StructuraPhp\QueryBuilder\Fixtures\Author;
 use Tests\StructuraPhp\QueryBuilder\Fixtures\Queries\ConfigurableQuery;
+use Tests\StructuraPhp\QueryBuilder\Fixtures\Status;
 use Tests\StructuraPhp\QueryBuilder\TestCase;
 
 final class ScopeContextTest extends TestCase
@@ -93,6 +95,30 @@ final class ScopeContextTest extends TestCase
         self::assertSame(['Foo', 'Bar', 'Baz'], $titles);
     }
 
+    public function testContextClosureReceivesCastRequestArguments(): void
+    {
+        $ids = fn (Status $status): array => $status === Status::Draft
+            ? [2, 3]
+            : [];
+
+        $titles = $this->titles(
+            ['ofStatusAmong' => ['status' => 'draft']],
+            ['ofStatusAmong' => ['ids' => $ids]],
+        );
+
+        self::assertSame(['Baz'], $titles);
+    }
+
+    public function testContextClosureAskingAnUnknownArgumentThrows(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+
+        $this->titles(
+            ['ofStatusAmong' => ['status' => 'draft']],
+            ['ofStatusAmong' => ['ids' => fn (string $foo): array => []]],
+        );
+    }
+
     public function testClosureTypedArgumentReceivesTheClosure(): void
     {
         $callback = function (Builder $query): void {
@@ -155,6 +181,7 @@ final class ScopeContextTest extends TestCase
             $scope->scope('ownedBy')->context('author');
             $scope->scope('among')->context('ids');
             $scope->scope('tapped')->context('callback');
+            $scope->scope('ofStatusAmong')->context('ids');
         };
 
         $parameters = QueryParameters::fromArray(

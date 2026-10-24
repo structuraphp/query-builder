@@ -122,6 +122,19 @@ class Article extends Model
 
     /**
      * @param Builder<self> $query
+     * @param list<int> $ids
+     */
+    public function scopeOfStatusAmong(
+        Builder $query,
+        Status $status,
+        array $ids,
+    ): void {
+        $query->where('status', $status->value);
+        $query->getQuery()->whereIn('id', $ids);
+    }
+
+    /**
+     * @param Builder<self> $query
      * @param Closure(Builder<self>): void $callback
      */
     public function scopeTapped(Builder $query, Closure $callback): void

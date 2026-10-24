@@ -16,6 +16,8 @@ final readonly class ScopeArgument
      * @param Closure(mixed): mixed $cast
      * @param null|(Closure(): mixed) $default null when required
      * @param bool $context given by the code, never read from the request
+     * @param bool $lazy a closure given as context is called, with the
+     *                   request arguments it names
      */
     public function __construct(
         public string $name,
@@ -26,5 +28,6 @@ final readonly class ScopeArgument
         public Closure $cast,
         public ?Closure $default,
         public bool $context = false,
+        public bool $lazy = false,
     ) {}
 }

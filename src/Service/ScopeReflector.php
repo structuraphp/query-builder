@@ -121,7 +121,8 @@ final class ScopeReflector
 
     /**
      * The code gives the value as is, or a closure resolved only when the
-     * scope is applied, unless the scope itself expects a closure.
+     * scope is applied (see `lazy`), unless the scope itself expects a
+     * closure.
      */
     private function contextArgument(
         ScopeConfig $config,
@@ -148,7 +149,6 @@ final class ScopeReflector
         }
 
         $type = $this->typeName($parameter);
-        $lazy = !\in_array($type, [Closure::class, 'callable'], true);
 
         return new ScopeArgument(
             name: $name,
@@ -156,11 +156,10 @@ final class ScopeReflector
             each: [],
             messages: [],
             attribute: null,
-            cast: fn (mixed $value): mixed => $lazy && $value instanceof Closure
-                ? $value()
-                : $value,
+            cast: fn (mixed $value): mixed => $value,
             default: $this->default($config, $parameter),
             context: true,
+            lazy: !\in_array($type, [Closure::class, 'callable'], true),
         );
     }
 

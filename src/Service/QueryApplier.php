@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use InvalidArgumentException;
 use LogicException;
+use ReflectionFunction;
 use StructuraPhp\QueryBuilder\Enum\Mode;
 use StructuraPhp\QueryBuilder\Enum\Type;
 use StructuraPhp\QueryBuilder\ValueObject\ScopeArgument;
@@ -160,16 +161,54 @@ final readonly class QueryApplier
                 continue;
             }
 
+            $resolved = [];
+            foreach ($fromRequest as $argument) {
+                $resolved[$argument->name] = $this->argument($argument, $given);
+            }
+
+            $provided = $context[$name] ?? [];
             $values = array_map(
-                fn (ScopeArgument $arg): mixed => $this->argument(
-                    $arg,
-                    $arg->context ? $context[$name] ?? [] : $given,
-                ),
+                fn (ScopeArgument $arg): mixed => $arg->context
+                    ? $this->context($name, $arg, $provided, $resolved)
+                    : $resolved[$arg->name],
                 $arguments,
             );
 
             $query->scopes([$config->method ?? $config->name => $values]);
         }
+    }
+
+    /**
+     * @param array<string, mixed> $given
+     * @param array<string, mixed> $resolved request arguments of the scope,
+     *                                       cast and defaulted
+     */
+    private function context(
+        string $scope,
+        ScopeArgument $argument,
+        array $given,
+        array $resolved,
+    ): mixed {
+        $value = $this->argument($argument, $given);
+        if (!$argument->lazy || !$value instanceof Closure) {
+            return $value;
+        }
+
+        $arguments = [];
+        $parameters = new ReflectionFunction($value)->getParameters();
+        foreach ($parameters as $parameter) {
+            $name = $parameter->name;
+            if (\array_key_exists($name, $resolved)) {
+                $arguments[$name] = $resolved[$name];
+            } elseif (!$parameter->isOptional()) {
+                throw new InvalidArgumentException(
+                    "Scope {$scope} has no request argument {$name} for the"
+                    . " context of {$argument->name}.",
+                );
+            }
+        }
+
+        return $value(...$arguments);
     }
 
     private function argument(

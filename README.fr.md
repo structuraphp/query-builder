@@ -350,6 +350,11 @@ $query = $parameters->builder(context: [
 
 - Une closure n'est appelée que si le client a demandé le scope, sauf si le
   paramètre est lui-même typé `Closure` ou `callable`.
+- La closure reçoit, par nom, les arguments du scope venant de l'URL, une
+  fois castés et complétés par leur valeur par défaut (un enum, une date…) :
+  `'groupIds' => fn (string $search) => $groups->idsMatching($user, $search)`.
+  Un paramètre de la closure qui n'en fait pas partie, et n'a pas de valeur
+  par défaut, lève une `InvalidArgumentException`.
 - Un scope dont tous les arguments viennent du contexte est un interrupteur
   booléen : `?mine=1` pour `scopeMine(Builder $query, User $user)`.
 - `default()` ou la valeur par défaut PHP remplace un contexte manquant ;
