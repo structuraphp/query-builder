@@ -63,7 +63,7 @@ final class QueryParametersTest extends TestCase
         $this->expectException(ValidationException::class);
 
         QueryParameters::fromArray(new FilterArticleQuery(), [
-            'title' => ['value' => 'Foo', 'mode' => '>'],
+            'title' => ['value' => 'Foo', 'mode' => 'gt'],
         ]);
     }
 

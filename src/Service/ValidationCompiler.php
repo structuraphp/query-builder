@@ -239,7 +239,8 @@ final readonly class ValidationCompiler
                 : "required_with:{$name}",
             ...$in
                 ? [Rule::when(
-                    fn (Fluent $input): bool => $mode($input) === Mode::In->value,
+                    fn (Fluent $input): bool => $mode($input)
+                        === Mode::In->value,
                     ['array', 'min:1'],
                 )]
                 : [],

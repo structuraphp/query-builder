@@ -78,7 +78,7 @@ final class FilterTest extends TestCase
     public function testComparison(): void
     {
         $response = $this->fetch(FilterArticleQuery::class, [
-            'views' => ['value' => 100, 'mode' => '>'],
+            'views' => ['value' => 100, 'mode' => 'gt'],
         ]);
 
         $response->assertOk();
@@ -88,7 +88,7 @@ final class FilterTest extends TestCase
     public function testDateComparison(): void
     {
         $response = $this->fetch(FilterArticleQuery::class, [
-            'published_at' => ['value' => '2024-06-01', 'mode' => '>'],
+            'published_at' => ['value' => '2024-06-01', 'mode' => 'gt'],
         ]);
 
         $response->assertOk();
@@ -108,7 +108,7 @@ final class FilterTest extends TestCase
     public function testModeNotAllowedForType(): void
     {
         $response = $this->fetch(FilterArticleQuery::class, [
-            'title' => ['value' => 'Foo', 'mode' => '>'],
+            'title' => ['value' => 'Foo', 'mode' => 'gt'],
         ]);
 
         $response
@@ -282,6 +282,17 @@ final class FilterTest extends TestCase
         ]);
     }
 
+    public function testSymbolModeIs422(): void
+    {
+        $response = $this->fetch(FilterArticleQuery::class, [
+            'views' => ['value' => 100, 'mode' => '>'],
+        ]);
+
+        $response->assertUnprocessable()->assertJsonValidationErrors([
+            'views.mode',
+        ]);
+    }
+
     public function testArrayValueIs422(): void
     {
         $response = $this->fetch(FilterArticleQuery::class, [
@@ -351,7 +362,7 @@ final class FilterTest extends TestCase
     public function testFloatFilter(): void
     {
         $response = $this->fetch(FilterArticleQuery::class, [
-            'rating' => ['value' => '3.5', 'mode' => '>='],
+            'rating' => ['value' => '3.5', 'mode' => 'gte'],
         ]);
 
         $response->assertOk();
@@ -381,7 +392,7 @@ final class FilterTest extends TestCase
     public function testModeErrorUsesFilterAttribute(): void
     {
         $response = $this->fetch(FilterArticleQuery::class, [
-            'statut' => ['value' => 'draft', 'mode' => '>'],
+            'statut' => ['value' => 'draft', 'mode' => 'gt'],
         ]);
 
         $response->assertUnprocessable();

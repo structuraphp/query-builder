@@ -18,7 +18,7 @@ Le nom du filtre est à la racine de la query string, avec trois clés :
 | Clé     | Obligatoire | Rôle                               |
 |---------|-------------|------------------------------------|
 | `value` | oui         | Valeur comparée                    |
-| `mode`  | non (`=`)   | Opérateur, selon le type du filtre |
+| `mode`  | non (`eq`)  | Opérateur, selon le type du filtre |
 | `not`   | non         | `1` inverse la condition           |
 
 ```sql
@@ -33,13 +33,17 @@ Un filtre absent de l'URL n'est pas appliqué.
 Le type est obligatoire. Il fixe la validation de `value` et les modes
 acceptés :
 
-| `Type`    | Validation          | Modes                           |
-|-----------|---------------------|---------------------------------|
-| `String`  | `string`            | `=`, `like`, `in`               |
-| `Integer` | `integer`           | `=`, `>`, `<`, `>=`, `<=`, `in` |
-| `Float`   | `numeric`           | `=`, `>`, `<`, `>=`, `<=`, `in` |
-| `Boolean` | `boolean`           | `=`                             |
-| `Date`    | `date_format:Y-m-d` | `=`, `>`, `<`, `>=`, `<=`       |
+| `Type`    | Validation          | Modes                                |
+|-----------|---------------------|--------------------------------------|
+| `String`  | `string`            | `eq`, `like`, `in`                   |
+| `Integer` | `integer`           | `eq`, `gt`, `lt`, `gte`, `lte`, `in` |
+| `Float`   | `numeric`           | `eq`, `gt`, `lt`, `gte`, `lte`, `in` |
+| `Boolean` | `boolean`           | `eq`                                 |
+| `Date`    | `date_format:Y-m-d` | `eq`, `gt`, `lt`, `gte`, `lte`       |
+
+Les modes de comparaison sont des mots, jamais des symboles, pour ne jamais
+entrer en collision avec les caractères de l'URL : `eq` (`=`), `gt` (`>`),
+`gte` (`>=`), `lt` (`<`), `lte` (`<=`).
 
 ### Entier et flottant
 
@@ -49,12 +53,12 @@ $filter->filter('rating')->type(Type::Float);
 ```
 
 ```sql
--- GET /articles?views[value]=10&views[mode]=>=
+-- GET /articles?views[value]=10&views[mode]=gte
 WHERE articles.views >= 10
 ```
 
 ```sql
--- GET /articles?rating[value]=4.5&rating[mode]=<
+-- GET /articles?rating[value]=4.5&rating[mode]=lt
 WHERE articles.rating < 4.5
 ```
 
@@ -135,13 +139,13 @@ fonction SQL : son index reste utilisable.
 $filter->filter('published')->column('published_at')->type(Type::Date);
 ```
 
-| Mode | URL                                               | SQL                                                            |
-|------|---------------------------------------------------|----------------------------------------------------------------|
-| `=`  | `?published[value]=2024-01-15`                    | `published_at >= '2024-01-15' AND published_at < '2024-01-16'` |
-| `>`  | `?published[value]=2024-01-15&published[mode]=>`  | `published_at >= '2024-01-16'`                                 |
-| `>=` | `?published[value]=2024-01-15&published[mode]=>=` | `published_at >= '2024-01-15'`                                 |
-| `<`  | `?published[value]=2024-01-15&published[mode]=<`  | `published_at < '2024-01-15'`                                  |
-| `<=` | `?published[value]=2024-01-15&published[mode]=<=` | `published_at < '2024-01-16'`                                  |
+| Mode  | URL                                                | SQL                                                            |
+|-------|----------------------------------------------------|----------------------------------------------------------------|
+| `eq`  | `?published[value]=2024-01-15`                     | `published_at >= '2024-01-15' AND published_at < '2024-01-16'` |
+| `gt`  | `?published[value]=2024-01-15&published[mode]=gt`  | `published_at >= '2024-01-16'`                                 |
+| `gte` | `?published[value]=2024-01-15&published[mode]=gte` | `published_at >= '2024-01-15'`                                 |
+| `lt`  | `?published[value]=2024-01-15&published[mode]=lt`  | `published_at < '2024-01-15'`                                  |
+| `lte` | `?published[value]=2024-01-15&published[mode]=lte` | `published_at < '2024-01-16'`                                  |
 
 ```
 GET /articles?published[value]=15/01/2024
@@ -182,7 +186,7 @@ refusé comme n'importe quel mode inconnu.
 
 ## Inverser avec `not`
 
-Il n'y a pas de mode `!=` : `not=1` inverse n'importe quel mode.
+Il n'y a pas de mode `ne` : `not=1` inverse n'importe quel mode.
 
 ```sql
 -- GET /articles?title[value]=Foo&title[not]=1

@@ -124,7 +124,7 @@ enum Type
             return;
         }
 
-        $base->where($column, $mode->value, $value);
+        $base->where($column, $mode->operator(), $value);
     }
 
     /**
@@ -142,7 +142,7 @@ enum Type
             Mode::Equal => ['>=' => $start, '<' => $next],
             Mode::GreaterThan => ['>=' => $next],
             Mode::LessOrEqual => ['<' => $next],
-            default => [$mode->value => $start],
+            default => [$mode->operator() => $start],
         };
     }
 
