@@ -33,6 +33,7 @@ final class Definition
         'page',
         'cursor',
         'limit',
+        'count',
     ];
 
     /** @var array<string, FilterConfig> */
@@ -53,6 +54,9 @@ final class Definition
 
     /** @var array<string, RelationConfig> */
     public private(set) array $relations = [];
+
+    /** @var array<string, true> relations the client may count */
+    public private(set) array $counts = [];
 
     /** @var array<string, true> root names taken by filters and scopes */
     private array $rootNames = [];
@@ -117,7 +121,21 @@ final class Definition
 
                 $definition->relations[$config->name] = $config;
             }
+
+            foreach ($relation->counts as $name) {
+                $definition->assertCountable($name);
+                if (isset($definition->counts[$name])) {
+                    throw new ConfigurationException(\sprintf(
+                        'Count "%s" is declared twice.',
+                        $name,
+                    ));
+                }
+
+                $definition->counts[$name] = true;
+            }
         }
+
+        $definition->assertCursorSorts();
 
         return $definition;
     }
@@ -165,6 +183,43 @@ final class Definition
         }
     }
 
+    /**
+     * A count is a root relation of the model: `withCount` aliases a nested
+     * one ambiguously.
+     */
+    private function assertCountable(string $name): void
+    {
+        $this->assertValidName($name);
+
+        if (!method_exists($this->model, $name)) {
+            throw new ConfigurationException(\sprintf(
+                'Relation "%s" does not exist on %s.',
+                $name,
+                $this->model::class,
+            ));
+        }
+    }
+
+    /**
+     * Cursor pagination cannot compare a computed count in its WHERE clause.
+     */
+    private function assertCursorSorts(): void
+    {
+        if ($this->pagination->default !== 'cursor') {
+            return;
+        }
+
+        foreach ($this->defaultSorts as [$name]) {
+            if ($this->sorts[$name]->count !== null) {
+                throw new ConfigurationException(\sprintf(
+                    'Default sort "%s" counts a relation: it cannot be used'
+                    . ' with the default cursor pagination.',
+                    $name,
+                ));
+            }
+        }
+    }
+
     private function assertValidName(string $name): void
     {
         if (preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/', $name) !== 1) {
@@ -199,6 +254,17 @@ final class Definition
                     'Sort "%s" is declared twice.',
                     $config->name,
                 ));
+            }
+
+            if ($config->count !== null) {
+                if ($config->column !== null) {
+                    throw new ConfigurationException(\sprintf(
+                        'Sort "%s" cannot have both column() and count().',
+                        $config->name,
+                    ));
+                }
+
+                $this->assertCountable($config->count);
             }
 
             $this->sorts[$config->name] = $config;

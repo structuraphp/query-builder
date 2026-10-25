@@ -93,6 +93,8 @@ LIMIT 3
 La clé primaire est ajoutée en dernier critère de tri, pour que deux lignes
 de même date ne soient jamais sautées ou répétées d'une page à l'autre.
 Aucune requête de comptage n'est exécutée : ça tient sur de grosses tables.
+Elle ne sait pas trier sur un nombre de relations (voir
+[Tri](sorting.fr.md#trier-sur-un-nombre)).
 
 La réponse est un `CursorPaginator` :
 

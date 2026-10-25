@@ -73,7 +73,8 @@ SELECT * FROM articles ORDER BY articles.created_at DESC, articles.id ASC LIMIT 
 
 The primary key is added as the last sort criterion, so that two rows with
 the same date are never skipped or repeated between pages. No count query
-runs: it scales on large tables.
+runs: it scales on large tables. It cannot sort on a relation count (see
+[Sorting](sorting.md#sorting-on-a-count)).
 
 The response is a `CursorPaginator`:
 

@@ -56,6 +56,29 @@ GET /articles?with=author.profile
 Only the first relation of the path (`author`) is checked when the query is
 read: the nested ones depend on the related models.
 
+## Counting relations
+
+`count()` lets the client count a relation, without loading it:
+
+```php
+$relation->relation('author');      // loadable with `with`
+$relation->count('comments');       // countable with `count`
+```
+```sql
+-- GET /articles?count=comments
+SELECT articles.*, (SELECT count(*) FROM comments
+    WHERE articles.id = comments.article_id) AS comments_count
+FROM articles
+```
+
+Each article gets `comments_count` in the response. `count` takes a
+comma-separated list, like `with`.
+
+A countable relation is not loadable, and the other way round: you can
+expose the number of comments without exposing the comments. Only root
+relations of the model can be counted. To sort on a count, see
+[Sorting](sorting.md#sorting-on-a-count).
+
 ## Validation errors
 
 | URL                     | Error                                    |
@@ -63,23 +86,26 @@ read: the nested ones depend on the related models.
 | `?with=tags`            | `with`: The selected with is invalid.    |
 | `?with=author.password` | `with`: The selected with is invalid.    |
 | `?with[]=author`        | `with`: The with field must be a string. |
+| `?count=author`         | `count`: The selected count is invalid.  |
 
 Every relation of the list must be declared: a nested path is not allowed
 because its root is.
 
 Without any declared relation, `with` is forbidden: `The with field is
-prohibited.`
+prohibited.` The same goes for `count` without any declared count.
 
 ## Configuration errors
 
 A `ConfigurationException` is thrown when the query is read:
 
-- relation declared twice;
-- root relation that is not a method of the model.
+- relation or count declared twice;
+- root relation that is not a method of the model;
+- count of a nested relation (`author.profile`).
 
 ## Known limitations
 
 - No alias: the URL uses the relation name.
 - No filter on a relation column (`author.name`): use a scope.
-- No constraint on the loaded relation (only some comments): not supported
-  yet.
+- No constraint on the loaded or counted relation (only some comments): not
+  supported yet.
+- No other aggregate than the count (`withSum`, `withAvg`…).

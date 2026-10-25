@@ -39,6 +39,8 @@ final readonly class ValidationCompiler
      */
     public function after(Validator $validator): void
     {
+        $this->checkCursorSorts($validator);
+
         $errors = $validator->errors();
         $data = $validator->getData();
 
@@ -285,11 +287,24 @@ final readonly class ValidationCompiler
      */
     private function relationRules(): array
     {
-        if ($this->definition->relations === []) {
-            return ['with' => ['prohibited']];
-        }
+        return [
+            ...$this->listRules('with', $this->definition->relations),
+            ...$this->listRules('count', $this->definition->counts),
+        ];
+    }
 
-        $declared = $this->definition->relations;
+    /**
+     * A comma-separated list of declared names (`with`, `count`).
+     *
+     * @param array<string, mixed> $declared
+     *
+     * @return array<string, list<mixed>>
+     */
+    private function listRules(string $key, array $declared): array
+    {
+        if ($declared === []) {
+            return [$key => ['prohibited']];
+        }
 
         $rule = function (
             string $attribute,
@@ -308,7 +323,7 @@ final readonly class ValidationCompiler
             }
         };
 
-        return ['with' => ['sometimes', 'string', $rule]];
+        return [$key => ['sometimes', 'string', $rule]];
     }
 
     /**
@@ -342,5 +357,42 @@ final readonly class ValidationCompiler
                 'max:' . $pagination->maxLimit,
             ],
         ];
+    }
+
+    /**
+     * Cursor pagination cannot compare a computed count in its WHERE clause:
+     * the client cannot combine it with a count sort, even a default one.
+     */
+    private function checkCursorSorts(Validator $validator): void
+    {
+        $errors = $validator->errors();
+        if ($errors->hasAny(['pagination', 'sort', 'sort.*'])) {
+            return;
+        }
+
+        $data = $validator->getData();
+        $mode = $data['pagination'] ?? $this->definition->pagination->default;
+        if ($mode !== 'cursor') {
+            return;
+        }
+
+        $sort = $data['sort'] ?? null;
+        $names = \is_array($sort)
+            ? array_keys($sort)
+            : array_column($this->definition->defaultSorts, 0);
+        $counted = array_any(
+            $names,
+            fn (int|string $name): bool => ($this->definition
+                ->sorts[(string) $name] ?? null)?->count !== null,
+        );
+        if (!$counted) {
+            return;
+        }
+
+        $key = \is_array($sort) ? 'sort' : 'pagination';
+        $message = trans('validation.in', [
+            'attribute' => $validator->getDisplayableAttribute($key),
+        ]);
+        $errors->add($key, \is_string($message) ? $message : 'validation.in');
     }
 }

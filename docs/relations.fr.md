@@ -71,6 +71,29 @@ GET /articles?with=author.profile
 Seule la première relation du chemin (`author`) est vérifiée à la lecture de
 la query : les suivantes dépendent des modèles liés.
 
+## Compter des relations
+
+`count()` permet au client de compter une relation, sans la charger :
+
+```php
+$relation->relation('author');      // chargeable avec `with`
+$relation->count('comments');       // comptable avec `count`
+```
+```sql
+-- GET /articles?count=comments
+SELECT articles.*, (SELECT count(*) FROM comments
+    WHERE articles.id = comments.article_id) AS comments_count
+FROM articles
+```
+
+Chaque article reçoit `comments_count` dans la réponse. `count` prend une
+liste séparée par des virgules, comme `with`.
+
+Une relation comptable n'est pas chargeable, et inversement : on peut
+exposer le nombre de commentaires sans exposer les commentaires. Seules les
+relations racines du modèle peuvent être comptées. Pour trier sur un nombre,
+voir [Tri](sorting.fr.md#trier-sur-un-nombre).
+
 ## Erreurs de validation
 
 | URL                     | Erreur                                    |
@@ -78,24 +101,27 @@ la query : les suivantes dépendent des modèles liés.
 | `?with=tags`            | `with` : The selected with is invalid.    |
 | `?with=author.password` | `with` : The selected with is invalid.    |
 | `?with[]=author`        | `with` : The with field must be a string. |
+| `?count=author`         | `count` : The selected count is invalid.  |
 
 Chaque relation de la liste doit être déclarée : un chemin imbriqué n'est
 pas autorisé parce que sa racine l'est.
 
 Sans aucune relation déclarée, `with` est interdit : `The with field is
-prohibited.`
+prohibited.` De même pour `count` sans aucun comptage déclaré.
 
 ## Erreurs de configuration
 
 Une `ConfigurationException` est levée à la lecture de la query :
 
-- relation déclarée deux fois ;
-- relation racine qui n'est pas une méthode du modèle.
+- relation ou comptage déclaré deux fois ;
+- relation racine qui n'est pas une méthode du modèle ;
+- comptage d'une relation imbriquée (`author.profile`).
 
 ## Limites connues
 
 - Pas d'alias : l'URL utilise le nom de la relation.
 - Pas de filtre sur une colonne de relation (`author.name`) : passez par un
   scope.
-- Pas de contrainte sur la relation chargée (seulement certains
+- Pas de contrainte sur la relation chargée ou comptée (seulement certains
   commentaires) : pas encore supporté.
+- Pas d'autre agrégat que le comptage (`withSum`, `withAvg`…).

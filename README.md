@@ -139,9 +139,10 @@ articles, with their authors.
 - **🔐 Server-side context.** Give scope arguments from the code (the
   current user, ids computed by a service), never from the client, and
   compute them only when the scope is requested.
-- **↕️ Sorting.** Declared sorts, priority from the URL, default sorts.
-- **🔗 Relations.** The client picks the relations to eager load, among the
-  declared ones.
+- **↕️ Sorting.** Declared sorts on columns or relation counts, priority
+  from the URL, default sorts.
+- **🔗 Relations.** The client picks the relations to eager load or count,
+  among the declared ones.
 - **📄 Pagination.** Offset, cursor (stable, without count query) or none,
   with a limit the client cannot exceed.
 - **🧱 Domain-friendly.** `QueryParameters` is a value object without HTTP

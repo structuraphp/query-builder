@@ -47,6 +47,29 @@ As soon as the client sends `sort`, it replaces the defaults entirely.
 In `cursor` pagination, the primary key is added as the last sort criterion
 so that pages stay stable (see [Pagination](pagination.md)).
 
+## Sorting on a count
+
+`count()` sorts on the number of related models instead of a column:
+
+```php
+$sort->sort('comments')->count('comments');
+```
+```sql
+-- GET /articles?sort[comments]=desc
+SELECT articles.*, (SELECT count(*) FROM comments
+    WHERE articles.id = comments.article_id) AS comments_count
+FROM articles ORDER BY comments_count DESC
+```
+
+- `comments_count` is added to the response, even if the client did not ask
+  for it with `count`; asked for both ways, it is computed once.
+- The relation does not need to be declared countable (see
+  [Relations](relations.md#counting-relations)).
+- Cursor pagination cannot sort on a computed count:
+  `?pagination=cursor&sort[comments]=desc` is rejected on `sort`, and
+  `?pagination=cursor` with a default count sort on `pagination`
+  (`The selected … is invalid.`).
+
 ## Validation errors
 
 | URL                | Error                                             |
@@ -66,4 +89,7 @@ prohibited.`
 A `ConfigurationException` is thrown when the query is read:
 
 - sort declared twice, or not made of letters, digits and `_` only;
-- default sort that is not declared, or direction other than `asc`/`desc`.
+- default sort that is not declared, or direction other than `asc`/`desc`;
+- `column()` and `count()` on the same sort, or `count()` of a relation that
+  is not a method of the model;
+- default sort on a count with `cursor` as default pagination.

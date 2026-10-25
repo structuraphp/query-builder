@@ -7,6 +7,7 @@ namespace StructuraPhp\QueryBuilder\Service;
 use Closure;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Str;
 use InvalidArgumentException;
 use LogicException;
 use ReflectionFunction;
@@ -41,8 +42,9 @@ final readonly class QueryApplier
 
         $this->applyFilters($query, $validated);
         $this->applyScopes($query, $validated, $input, $context);
-        $this->applySorts($query, $validated);
+        $sorted = $this->applySorts($query, $validated);
         $this->applyRelations($query, $validated);
+        $this->applyCounts($query, $validated, $sorted);
 
         return $query;
     }
@@ -247,9 +249,12 @@ final readonly class QueryApplier
     /**
      * @param Builder<Model> $query
      * @param array<string, mixed> $validated
+     *
+     * @return list<string> relations counted by the applied sorts
      */
-    private function applySorts(Builder $query, array $validated): void
+    private function applySorts(Builder $query, array $validated): array
     {
+        $counted = [];
         $sorts = $validated['sort'] ?? null;
         $pairs = \is_array($sorts)
             ? array_map(null, array_keys($sorts), array_values($sorts))
@@ -261,11 +266,50 @@ final readonly class QueryApplier
                 continue;
             }
 
+            if ($config->count !== null) {
+                $counted[] = $config->count;
+            }
+
             $query->getQuery()->orderBy(
-                $this->column($config->column ?? $config->name),
+                $config->count !== null
+                    ? $this->countAlias($config->count)
+                    : $this->column($config->column ?? $config->name),
                 $direction === 'desc' ? 'desc' : 'asc',
             );
         }
+
+        return $counted;
+    }
+
+    /**
+     * Requested counts and those a sort needs, each counted once.
+     *
+     * @param Builder<Model> $query
+     * @param array<string, mixed> $validated
+     * @param list<string> $sorted
+     */
+    private function applyCounts(
+        Builder $query,
+        array $validated,
+        array $sorted,
+    ): void {
+        $count = $validated['count'] ?? null;
+        $requested = \is_string($count) ? self::relationNames($count) : [];
+        $names = array_values(array_unique([...$requested, ...$sorted]));
+        if ($names === []) {
+            return;
+        }
+
+        $query->withCount(array_map(
+            fn (string $name): string => $name
+                . ' as ' . $this->countAlias($name),
+            $names,
+        ));
+    }
+
+    private function countAlias(string $relation): string
+    {
+        return Str::snake($relation) . '_count';
     }
 
     /**

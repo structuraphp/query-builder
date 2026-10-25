@@ -240,6 +240,6 @@ GET /articles?statut[value]=archived
 Une `ConfigurationException` est levée à la lecture de la query :
 
 - filtre sans `type()` ;
-- nom réservé (`with`, `sort`, `pagination`, `page`, `cursor`, `limit`),
+- nom réservé (`with`, `count`, `sort`, `pagination`, `page`, `cursor`, `limit`),
   déclaré deux fois (y compris face à un scope), ou qui n'est pas fait que de
   lettres, chiffres et `_`.

@@ -236,6 +236,6 @@ GET /articles?statut[value]=archived
 A `ConfigurationException` is thrown when the query is read:
 
 - filter without `type()`;
-- name reserved (`with`, `sort`, `pagination`, `page`, `cursor`, `limit`),
+- name reserved (`with`, `count`, `sort`, `pagination`, `page`, `cursor`, `limit`),
   declared twice (also against a scope), or not made of letters, digits and
   `_` only.

@@ -48,6 +48,30 @@ défaut.
 En pagination `cursor`, la clé primaire est ajoutée en dernier critère de
 tri pour que les pages restent stables (voir [Pagination](pagination.fr.md)).
 
+## Trier sur un nombre
+
+`count()` trie sur le nombre de modèles liés plutôt que sur une colonne :
+
+```php
+$sort->sort('comments')->count('comments');
+```
+```sql
+-- GET /articles?sort[comments]=desc
+SELECT articles.*, (SELECT count(*) FROM comments
+    WHERE articles.id = comments.article_id) AS comments_count
+FROM articles ORDER BY comments_count DESC
+```
+
+- `comments_count` est ajouté à la réponse, même si le client ne l'a pas
+  demandé avec `count` ; demandé des deux façons, il n'est calculé qu'une
+  fois.
+- La relation n'a pas besoin d'être déclarée comptable (voir
+  [Relations](relations.fr.md#compter-des-relations)).
+- La pagination par curseur ne sait pas trier sur un nombre calculé :
+  `?pagination=cursor&sort[comments]=desc` est refusé sur `sort`, et
+  `?pagination=cursor` avec un tri par défaut sur un nombre est refusé sur
+  `pagination` (`The selected … is invalid.`).
+
 ## Erreurs de validation
 
 | URL                | Erreur                                             |
@@ -68,4 +92,7 @@ Une `ConfigurationException` est levée à la lecture de la query :
 
 - tri déclaré deux fois, ou qui n'est pas fait que de lettres, chiffres et
   `_` ;
-- tri par défaut non déclaré, ou direction autre que `asc`/`desc`.
+- tri par défaut non déclaré, ou direction autre que `asc`/`desc` ;
+- `column()` et `count()` sur le même tri, ou `count()` d'une relation qui
+  n'est pas une méthode du modèle ;
+- tri par défaut sur un nombre avec `cursor` comme pagination par défaut.

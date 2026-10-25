@@ -141,9 +141,10 @@ filtrée et triée, avec leurs auteurs.
   code (l'utilisateur courant, des identifiants calculés par un service),
   jamais depuis le client, et calculez-les seulement si le scope est
   demandé.
-- **↕️ Tri.** Tris déclarés, priorité donnée par l'URL, tris par défaut.
-- **🔗 Relations.** Le client choisit les relations à charger, parmi celles
-  déclarées.
+- **↕️ Tri.** Tris déclarés sur des colonnes ou des nombres de relations,
+  priorité donnée par l'URL, tris par défaut.
+- **🔗 Relations.** Le client choisit les relations à charger ou à compter,
+  parmi celles déclarées.
 - **📄 Pagination.** Par offset, par curseur (stable, sans requête de
   comptage) ou sans pagination, avec une limite que le client ne peut pas
   dépasser.
