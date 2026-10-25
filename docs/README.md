@@ -108,7 +108,7 @@ final class ArticleQuery implements FromModel, WithFilter
 ## Known limitations
 
 - No filter on a relation column (`author.name`), no `OR` groups between
-  filters, no `in` mode: use a scope.
+  filters: use a scope.
 - No alias and no constraint on loaded relations (see
   [Relations](relations.md)).
 - Scopes defined as builder macros are not supported.

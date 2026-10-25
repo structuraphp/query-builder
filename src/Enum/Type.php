@@ -37,16 +37,19 @@ enum Type
      */
     public function modes(): array
     {
+        $comparisons = [
+            Mode::Equal,
+            Mode::GreaterThan,
+            Mode::LessThan,
+            Mode::GreaterOrEqual,
+            Mode::LessOrEqual,
+        ];
+
         return match ($this) {
-            self::String => [Mode::Equal, Mode::Like],
+            self::String => [Mode::Equal, Mode::Like, Mode::In],
             self::Boolean => [Mode::Equal],
-            self::Integer, self::Float, self::Date => [
-                Mode::Equal,
-                Mode::GreaterThan,
-                Mode::LessThan,
-                Mode::GreaterOrEqual,
-                Mode::LessOrEqual,
-            ],
+            self::Integer, self::Float => [...$comparisons, Mode::In],
+            self::Date => $comparisons,
         };
     }
 
@@ -94,6 +97,12 @@ enum Type
         mixed $value,
     ): void {
         $base = $query->getQuery();
+
+        if ($mode === Mode::In) {
+            $base->whereIn($column, \is_array($value) ? $value : [$value]);
+
+            return;
+        }
 
         if ($mode === Mode::Like) {
             self::like($query, $column, (string) self::scalar($value));

@@ -121,7 +121,9 @@ final readonly class QueryApplier
             $mode = Mode::from(
                 (string) Type::scalar($input['mode'] ?? Mode::Equal->value),
             );
-            $value = $type->cast($input['value']);
+            $value = $mode === Mode::In && \is_array($input['value'])
+                ? array_map($type->cast(...), $input['value'])
+                : $type->cast($input['value']);
 
             if (filter_var($input['not'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
                 $query->whereNot(

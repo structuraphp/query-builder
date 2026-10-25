@@ -33,13 +33,13 @@ Un filtre absent de l'URL n'est pas appliqué.
 Le type est obligatoire. Il fixe la validation de `value` et les modes
 acceptés :
 
-| `Type`    | Validation          | Modes                     |
-|-----------|---------------------|---------------------------|
-| `String`  | `string`            | `=`, `like`               |
-| `Integer` | `integer`           | `=`, `>`, `<`, `>=`, `<=` |
-| `Float`   | `numeric`           | `=`, `>`, `<`, `>=`, `<=` |
-| `Boolean` | `boolean`           | `=`                       |
-| `Date`    | `date_format:Y-m-d` | `=`, `>`, `<`, `>=`, `<=` |
+| `Type`    | Validation          | Modes                           |
+|-----------|---------------------|---------------------------------|
+| `String`  | `string`            | `=`, `like`, `in`               |
+| `Integer` | `integer`           | `=`, `>`, `<`, `>=`, `<=`, `in` |
+| `Float`   | `numeric`           | `=`, `>`, `<`, `>=`, `<=`, `in` |
+| `Boolean` | `boolean`           | `=`                             |
+| `Date`    | `date_format:Y-m-d` | `=`, `>`, `<`, `>=`, `<=`       |
 
 ### Entier et flottant
 
@@ -78,6 +78,27 @@ WHERE articles.title LIKE '%50!%%' ESCAPE '!'
 La recherche ignore la casse : `ILIKE` sur PostgreSQL ; sur MySQL, selon la
 collation de la colonne.
 
+### `in`
+
+`in` prend une liste de valeurs, pour les filtres chaîne, entier et
+flottant :
+
+```sql
+-- GET /articles?statut[value][]=draft&statut[value][]=published&statut[mode]=in
+WHERE articles.status IN ('draft', 'published')
+```
+
+Chaque valeur est validée comme une valeur seule, `rules()` et `messages()`
+du filtre compris, et convertie dans le type du filtre :
+
+```sql
+-- GET /articles?views[value][]=10&views[value][]=300&views[mode]=in
+WHERE articles.views IN (10, 300)
+```
+
+Avec `not=1`, il devient `NOT IN`. En mode `in`, `value` doit être une liste
+non vide ; dans les autres modes, une valeur seule.
+
 ### Booléen
 
 ```php
@@ -97,7 +118,11 @@ GET /articles?featured[value]=true
 ```
 
 ```json
-{"featured.value": ["The featured field must be true or false."]}
+{
+    "featured.value": [
+        "The featured field must be true or false."
+    ]
+}
 ```
 
 ### Date
@@ -123,7 +148,11 @@ GET /articles?published[value]=15/01/2024
 ```
 
 ```json
-{"published.value": ["The published field must match the format Y-m-d."]}
+{
+    "published.value": [
+        "The published field must match the format Y-m-d."
+    ]
+}
 ```
 
 ## Inverser avec `not`
@@ -165,13 +194,15 @@ GET /articles?statut[value]=archived
 
 ## Erreurs de validation
 
-| URL                                 | Erreur                                                             |
-|-------------------------------------|--------------------------------------------------------------------|
-| `?views[value]=abc`                 | `views.value` : The views field must be an integer.                |
-| `?views[value]=10&views[mode]=like` | `views.mode` : The selected views is invalid.                      |
-| `?title[mode]=like`                 | `title.value` : The title field is required when title is present. |
-| `?title=Foo`                        | `title` : The title field must be an array.                        |
-| `?title[value][]=Foo`               | `title.value` : The title field must be a string.                  |
+| URL                                  | Erreur                                                             |
+|--------------------------------------|--------------------------------------------------------------------|
+| `?views[value]=abc`                  | `views.value` : The views field must be an integer.                |
+| `?views[value]=10&views[mode]=like`  | `views.mode` : The selected views is invalid.                      |
+| `?title[mode]=like`                  | `title.value` : The title field is required when title is present. |
+| `?title=Foo`                         | `title` : The title field must be an array.                        |
+| `?title[value][]=Foo`                | `title.value` : The title field must be a string.                  |
+| `?title[value]=Foo&title[mode]=in`   | `title.value` : The title field must be an array.                  |
+| `?views[value][]=abc&views[mode]=in` | `views.value.0` : The views field must be an integer.              |
 
 ## Erreurs de configuration
 

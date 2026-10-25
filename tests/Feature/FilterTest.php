@@ -153,6 +153,86 @@ final class FilterTest extends TestCase
         $response->assertUnprocessable();
     }
 
+    public function testInMode(): void
+    {
+        $response = $this->fetch(FilterArticleQuery::class, [
+            'title' => ['value' => ['Foo', 'Baz'], 'mode' => 'in'],
+        ]);
+
+        $response->assertOk();
+        self::assertSame(['Foo', 'Baz'], self::column($response, 'title'));
+    }
+
+    public function testInModeCastsEachValue(): void
+    {
+        $response = $this->fetch(FilterArticleQuery::class, [
+            'views' => ['value' => ['10', '300'], 'mode' => 'in'],
+        ]);
+
+        $response->assertOk();
+        self::assertSame(['Foo', 'Baz'], self::column($response, 'title'));
+    }
+
+    public function testNotInMode(): void
+    {
+        $response = $this->fetch(FilterArticleQuery::class, [
+            'title' => [
+                'value' => ['Foo', 'Baz'],
+                'mode' => 'in',
+                'not' => '1',
+            ],
+        ]);
+
+        $response->assertOk();
+        self::assertSame(['Foobar'], self::column($response, 'title'));
+    }
+
+    public function testInModeNeedsAnArray(): void
+    {
+        $response = $this->fetch(FilterArticleQuery::class, [
+            'title' => ['value' => 'Foo', 'mode' => 'in'],
+        ]);
+
+        $response->assertUnprocessable()->assertJsonValidationErrors([
+            'title.value',
+        ]);
+    }
+
+    public function testInModeValidatesEachValue(): void
+    {
+        $response = $this->fetch(FilterArticleQuery::class, [
+            'views' => ['value' => ['10', 'abc'], 'mode' => 'in'],
+        ]);
+
+        $response->assertUnprocessable()->assertJsonValidationErrors([
+            'views.value.1',
+        ]);
+    }
+
+    public function testInModeAppliesFilterRulesAndMessages(): void
+    {
+        $response = $this->fetch(FilterArticleQuery::class, [
+            'statut' => ['value' => ['draft', 'archived'], 'mode' => 'in'],
+        ]);
+
+        $response->assertUnprocessable();
+        self::assertSame(
+            'Statut invalide.',
+            self::errorMessage($response, 'statut.value.1'),
+        );
+    }
+
+    public function testDateHasNoInMode(): void
+    {
+        $response = $this->fetch(FilterArticleQuery::class, [
+            'published_at' => ['value' => ['2024-01-01'], 'mode' => 'in'],
+        ]);
+
+        $response->assertUnprocessable()->assertJsonValidationErrors([
+            'published_at.mode',
+        ]);
+    }
+
     public function testArrayValueIs422(): void
     {
         $response = $this->fetch(FilterArticleQuery::class, [

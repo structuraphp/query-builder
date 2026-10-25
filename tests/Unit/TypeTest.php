@@ -57,7 +57,7 @@ final class TypeTest extends TestCase
         yield 'string' => [
             Type::String,
             ['string'],
-            [Mode::Equal, Mode::Like],
+            [Mode::Equal, Mode::Like, Mode::In],
             12,
             '12',
         ];
@@ -65,7 +65,7 @@ final class TypeTest extends TestCase
         yield 'integer' => [
             Type::Integer,
             ['integer'],
-            self::COMPARISONS,
+            [...self::COMPARISONS, Mode::In],
             '12',
             12,
         ];
@@ -73,7 +73,7 @@ final class TypeTest extends TestCase
         yield 'float' => [
             Type::Float,
             ['numeric'],
-            self::COMPARISONS,
+            [...self::COMPARISONS, Mode::In],
             '1.5',
             1.5,
         ];

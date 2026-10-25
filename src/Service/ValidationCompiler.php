@@ -6,6 +6,7 @@ namespace StructuraPhp\QueryBuilder\Service;
 
 use Closure;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Fluent;
 use Illuminate\Translation\PotentiallyTranslatedString;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -82,6 +83,7 @@ final readonly class ValidationCompiler
         foreach ($this->definition->filters as $name => $config) {
             foreach ($config->messages as $rule => $message) {
                 $messages["{$name}.value.{$rule}"] = $message;
+                $messages["{$name}.value.*.{$rule}"] = $message;
             }
         }
 
@@ -104,7 +106,7 @@ final readonly class ValidationCompiler
     {
         $attributes = [];
         foreach ($this->definition->filters as $name => $config) {
-            foreach (['value', 'mode', 'not'] as $key) {
+            foreach (['value', 'value.*', 'mode', 'not'] as $key) {
                 $attributes["{$name}.{$key}"] = $config->attribute ?? $name;
             }
         }
@@ -179,12 +181,25 @@ final readonly class ValidationCompiler
 
             $modes = array_map(fn (Mode $mode) => $mode->value, $type->modes());
 
+            $valueRules = [...$type->rules(), ...$config->rules];
+
             $rules[$name] = ['sometimes', 'array'];
-            $rules["{$name}.value"] = [
-                "required_with:{$name}",
-                ...$type->rules(),
-                ...$config->rules,
-            ];
+            $rules["{$name}.value"] = ["required_with:{$name}", ...$valueRules];
+            if (\in_array(Mode::In, $type->modes(), true)) {
+                // In `in` mode, the value is a list: each item gets the rules
+                // of a single value.
+                $rules["{$name}.value"] = [
+                    "required_with:{$name}",
+                    Rule::when(
+                        fn (Fluent $input): bool => $input->get("{$name}.mode")
+                            === Mode::In->value,
+                        ['array', 'min:1'],
+                        $valueRules,
+                    ),
+                ];
+                $rules["{$name}.value.*"] = $valueRules;
+            }
+
             $rules["{$name}.mode"] = [
                 'sometimes',
                 'required',
