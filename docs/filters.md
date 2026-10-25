@@ -153,6 +153,30 @@ GET /articles?published[value]=15/01/2024
 }
 ```
 
+### `null`
+
+`nullable()` adds the `null` mode to a filter of any type, without value:
+
+```php
+$filter->filter('published')
+    ->column('published_at')
+    ->type(Type::Date)
+    ->nullable();
+```
+
+```sql
+-- GET /articles?published[mode]=null
+WHERE articles.published_at IS NULL
+```
+
+```sql
+-- GET /articles?published[mode]=null&published[not]=1
+WHERE NOT (articles.published_at IS NULL)
+```
+
+In `null` mode, `value` is forbidden. Without `nullable()`, the `null` mode
+is rejected like any unknown mode.
+
 ## Negating with `not`
 
 There is no `!=` mode: `not=1` negates any mode.
@@ -192,15 +216,17 @@ GET /articles?statut[value]=archived
 
 ## Validation errors
 
-| URL                                  | Error                                                             |
-|--------------------------------------|-------------------------------------------------------------------|
-| `?views[value]=abc`                  | `views.value`: The views field must be an integer.                |
-| `?views[value]=10&views[mode]=like`  | `views.mode`: The selected views is invalid.                      |
-| `?title[mode]=like`                  | `title.value`: The title field is required when title is present. |
-| `?title=Foo`                         | `title`: The title field must be an array.                        |
-| `?title[value][]=Foo`                | `title.value`: The title field must be a string.                  |
-| `?title[value]=Foo&title[mode]=in`   | `title.value`: The title field must be an array.                  |
-| `?views[value][]=abc&views[mode]=in` | `views.value.0`: The views field must be an integer.              |
+| URL                                                 | Error                                                                                                          |
+|-----------------------------------------------------|----------------------------------------------------------------------------------------------------------------|
+| `?views[value]=abc`                                 | `views.value`: The views field must be an integer.                                                             |
+| `?views[value]=10&views[mode]=like`                 | `views.mode`: The selected views is invalid.                                                                   |
+| `?title[mode]=like`                                 | `title.value`: The title field is required when title is present.                                              |
+| `?title=Foo`                                        | `title`: The title field must be an array.                                                                     |
+| `?title[value][]=Foo`                               | `title.value`: The title field must be a string.                                                               |
+| `?title[value]=Foo&title[mode]=in`                  | `title.value`: The title field must be an array.                                                               |
+| `?views[value][]=abc&views[mode]=in`                | `views.value.0`: The views field must be an integer.                                                           |
+| `?published[mode]=null&published[value]=2024-01-15` | `published.value`: The published field is prohibited.                                                          |
+| `?title[mode]=null` (not `nullable()`)              | `title.mode`: The selected title is invalid. `title.value`: The title field is required when title is present. |
 
 ## Configuration errors
 

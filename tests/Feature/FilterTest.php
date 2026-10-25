@@ -233,6 +233,55 @@ final class FilterTest extends TestCase
         ]);
     }
 
+    public function testNullMode(): void
+    {
+        DB::table('articles')->insert(['title' => 'Draft']);
+
+        $response = $this->fetch(FilterArticleQuery::class, [
+            'published_at' => ['mode' => 'null'],
+        ]);
+
+        $response->assertOk();
+        self::assertSame(['Draft'], self::column($response, 'title'));
+    }
+
+    public function testNotNullMode(): void
+    {
+        DB::table('articles')->insert(['title' => 'Draft']);
+
+        $response = $this->fetch(FilterArticleQuery::class, [
+            'published_at' => ['mode' => 'null', 'not' => '1'],
+        ]);
+
+        $response->assertOk();
+        self::assertSame(
+            ['Foo', 'Foobar', 'Baz'],
+            self::column($response, 'title'),
+        );
+    }
+
+    public function testNullModeForbidsAValue(): void
+    {
+        $response = $this->fetch(FilterArticleQuery::class, [
+            'published_at' => ['mode' => 'null', 'value' => '2024-01-01'],
+        ]);
+
+        $response->assertUnprocessable()->assertJsonValidationErrors([
+            'published_at.value',
+        ]);
+    }
+
+    public function testNullModeNeedsANullableFilter(): void
+    {
+        $response = $this->fetch(FilterArticleQuery::class, [
+            'title' => ['mode' => 'null'],
+        ]);
+
+        $response->assertUnprocessable()->assertJsonValidationErrors([
+            'title.mode',
+        ]);
+    }
+
     public function testArrayValueIs422(): void
     {
         $response = $this->fetch(FilterArticleQuery::class, [

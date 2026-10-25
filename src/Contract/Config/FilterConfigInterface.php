@@ -23,4 +23,9 @@ interface FilterConfigInterface
     public function messages(array $messages): static;
 
     public function attribute(string $attribute): static;
+
+    /**
+     * Adds the `null` mode: `IS NULL`, or `IS NOT NULL` with `not`.
+     */
+    public function nullable(): static;
 }

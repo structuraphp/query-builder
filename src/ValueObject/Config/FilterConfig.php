@@ -21,6 +21,8 @@ final class FilterConfig implements FilterConfigInterface
 
     public private(set) ?string $attribute = null;
 
+    public private(set) bool $nullable = false;
+
     public function __construct(
         public readonly string $name,
     ) {}
@@ -56,6 +58,13 @@ final class FilterConfig implements FilterConfigInterface
     public function attribute(string $attribute): static
     {
         $this->attribute = $attribute;
+
+        return $this;
+    }
+
+    public function nullable(): static
+    {
+        $this->nullable = true;
 
         return $this;
     }

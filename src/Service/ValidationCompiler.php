@@ -179,36 +179,79 @@ final readonly class ValidationCompiler
                 continue;
             }
 
-            $modes = array_map(fn (Mode $mode) => $mode->value, $type->modes());
+            $modes = $type->modes();
+            if ($config->nullable) {
+                $modes[] = Mode::IsNull;
+            }
 
-            $valueRules = [...$type->rules(), ...$config->rules];
+            $single = [...$type->rules(), ...$config->rules];
 
             $rules[$name] = ['sometimes', 'array'];
-            $rules["{$name}.value"] = ["required_with:{$name}", ...$valueRules];
-            if (\in_array(Mode::In, $type->modes(), true)) {
-                // In `in` mode, the value is a list: each item gets the rules
-                // of a single value.
-                $rules["{$name}.value"] = [
-                    "required_with:{$name}",
-                    Rule::when(
-                        fn (Fluent $input): bool => $input->get("{$name}.mode")
-                            === Mode::In->value,
-                        ['array', 'min:1'],
-                        $valueRules,
-                    ),
-                ];
-                $rules["{$name}.value.*"] = $valueRules;
+            $rules["{$name}.value"] = $this->valueRules($name, $modes, $single);
+            if (\in_array(Mode::In, $modes, true)) {
+                // In `in` mode, each item gets the rules of a single value.
+                $rules["{$name}.value.*"] = $single;
             }
 
             $rules["{$name}.mode"] = [
                 'sometimes',
                 'required',
-                Rule::in($modes),
+                Rule::in(array_map(fn (Mode $mode) => $mode->value, $modes)),
             ];
             $rules["{$name}.not"] = ['sometimes', 'required', 'boolean'];
         }
 
         return $rules;
+    }
+
+    /**
+     * `value` is a list in `in` mode, absent in `null` mode, a single value
+     * otherwise. Laravel does not nest `Rule::when()`, hence one condition
+     * per case.
+     *
+     * @param list<Mode> $modes
+     * @param list<mixed> $single
+     *
+     * @return list<mixed>
+     */
+    private function valueRules(
+        string $name,
+        array $modes,
+        array $single,
+    ): array {
+        $in = \in_array(Mode::In, $modes, true);
+        $null = \in_array(Mode::IsNull, $modes, true);
+        if (!$in && !$null) {
+            return ["required_with:{$name}", ...$single];
+        }
+
+        $mode = fn (Fluent $input): mixed => $input->get("{$name}.mode");
+        $special = [Mode::In->value, Mode::IsNull->value];
+
+        return [
+            $null
+                ? Rule::when(
+                    fn (Fluent $input): bool => $mode($input)
+                        === Mode::IsNull->value,
+                    ['prohibited'],
+                    ["required_with:{$name}"],
+                )
+                : "required_with:{$name}",
+            ...$in
+                ? [Rule::when(
+                    fn (Fluent $input): bool => $mode($input) === Mode::In->value,
+                    ['array', 'min:1'],
+                )]
+                : [],
+            Rule::when(
+                fn (Fluent $input): bool => !\in_array(
+                    $mode($input),
+                    $special,
+                    true,
+                ),
+                $single,
+            ),
+        ];
     }
 
     /**

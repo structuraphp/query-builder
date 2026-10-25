@@ -13,4 +13,5 @@ enum Mode: string
     case GreaterOrEqual = '>=';
     case LessOrEqual = '<=';
     case In = 'in';
+    case IsNull = 'null';
 }

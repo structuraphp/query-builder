@@ -98,6 +98,12 @@ enum Type
     ): void {
         $base = $query->getQuery();
 
+        if ($mode === Mode::IsNull) {
+            $base->whereNull($column);
+
+            return;
+        }
+
         if ($mode === Mode::In) {
             $base->whereIn($column, \is_array($value) ? $value : [$value]);
 

@@ -27,7 +27,7 @@ final class FilterArticleQuery implements FromModel, WithFilter
             ->rules(['in:draft,published'])
             ->messages(['in' => 'Statut invalide.'])
             ->attribute('statut');
-        $filter->filter('published_at')->type(Type::Date);
+        $filter->filter('published_at')->type(Type::Date)->nullable();
         $filter->filter('rating')->type(Type::Float);
         $filter->filter('featured')->type(Type::Boolean);
     }
