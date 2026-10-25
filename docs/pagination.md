@@ -93,9 +93,9 @@ The next page sends the cursor back:
 GET /articles?pagination=cursor&limit=2&cursor=eyJ…
 ```
 
-A cursor that does not decode is ignored: the first page is returned. A
-decoded cursor that does not match the query (tampered values) is a
-validation error on `cursor`.
+A cursor that does not decode, or does not match the query (tampered
+values), is a validation error on `cursor`: `The selected cursor is
+invalid.`
 
 ## No pagination
 

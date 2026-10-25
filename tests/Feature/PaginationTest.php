@@ -92,17 +92,20 @@ final class PaginationTest extends TestCase
         self::assertSame(range(1, 60), $ids);
     }
 
-    public function testGarbageCursorDoesNot500(): void
+    public function testUnreadableCursorIs422(): void
     {
         $this->seedArticles(3);
-        $ok = [200, 422];
 
         $response = $this->fetch(PlainArticleQuery::class, [
             'pagination' => 'cursor',
             'cursor' => 'xxx',
         ]);
 
-        self::assertContains($response->baseResponse->getStatusCode(), $ok);
+        $response->assertUnprocessable();
+        self::assertSame(
+            'The selected cursor is invalid.',
+            self::errorMessage($response, 'cursor'),
+        );
     }
 
     public function testCursorMissingParameterIs422(): void

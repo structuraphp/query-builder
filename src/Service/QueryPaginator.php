@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\QueryException;
+use Illuminate\Pagination\Cursor;
 use Illuminate\Validation\ValidationException;
 use LogicException;
 use StructuraPhp\QueryBuilder\Enum\Type;
@@ -72,6 +73,10 @@ final class QueryPaginator
         }
 
         $cursor = \is_string($cursor) ? $cursor : null;
+        // Laravel reads an undecodable cursor as the first page.
+        if ($cursor !== null && Cursor::fromEncoded($cursor) === null) {
+            throw $this->invalidCursor();
+        }
 
         try {
             return $query

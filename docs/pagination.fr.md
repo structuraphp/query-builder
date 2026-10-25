@@ -118,9 +118,9 @@ La page suivante renvoie le curseur :
 GET /articles?pagination=cursor&limit=2&cursor=eyJ…
 ```
 
-Un curseur qui ne se décode pas est ignoré : la première page est renvoyée.
-Un curseur décodé qui ne correspond pas à la requête (valeurs trafiquées) est
-une erreur de validation sur `cursor`.
+Un curseur qui ne se décode pas, ou qui ne correspond pas à la requête
+(valeurs trafiquées), est une erreur de validation sur `cursor` : `The
+selected cursor is invalid.`
 
 ## Sans pagination
 
