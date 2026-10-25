@@ -74,12 +74,9 @@ FROM articles ORDER BY comments_count DESC
 
 | URL                | Error                                             |
 |--------------------|---------------------------------------------------|
-| `?sort[views]=asc` | `sort`: The sort field must be an array.          |
+| `?sort[views]=asc` | `sort`: The selected sort is invalid.            |
 | `?sort[title]=up`  | `sort.title`: The selected sort.title is invalid. |
-| `?sort=title`      | `sort`: The sort field must be an array.          |
-
-An undeclared sort key is rejected with Laravel's `array:` rule message,
-which only says that `sort` must be an array.
+| `?sort=title`      | `sort`: The selected sort is invalid.            |
 
 Without any declared sort, `sort` is forbidden: `The sort field is
 prohibited.`

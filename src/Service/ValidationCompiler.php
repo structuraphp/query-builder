@@ -81,7 +81,10 @@ final readonly class ValidationCompiler
      */
     public function messages(): array
     {
-        $messages = [];
+        // The `array:` message only says that `sort` must be an array, even
+        // for an undeclared key.
+        $invalid = trans('validation.in');
+        $messages = \is_string($invalid) ? ['sort.array' => $invalid] : [];
         foreach ($this->definition->filters as $name => $config) {
             foreach ($config->messages as $rule => $message) {
                 $messages["{$name}.value.{$rule}"] = $message;
@@ -268,8 +271,9 @@ final readonly class ValidationCompiler
 
         $names = array_keys($this->definition->sorts);
 
-        // One rule per key rather than `sort.*`, so documentation generators
-        // list each sort.
+        // `array:` keeps the client's key order in validated(), which sets
+        // the priority. One rule per key rather than `sort.*`, so
+        // documentation generators list each sort.
         $rules = ['sort' => ['sometimes', 'array:' . implode(',', $names)]];
         foreach ($names as $name) {
             $rules["sort.{$name}"] = [

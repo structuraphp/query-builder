@@ -67,7 +67,11 @@ final class SortTest extends TestCase
             'sort' => ['views' => 'asc'],
         ]);
 
-        $response->assertUnprocessable()->assertJsonValidationErrors('sort');
+        $response->assertUnprocessable();
+        self::assertSame(
+            'The selected sort is invalid.',
+            self::errorMessage($response, 'sort'),
+        );
     }
 
     public function testBadDirectionIs422(): void

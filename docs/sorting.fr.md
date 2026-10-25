@@ -26,7 +26,8 @@ L'ordre des clés donne la priorité :
 
 ```sql
 -- GET /articles?sort[date]=asc&sort[title]=desc
-ORDER BY articles.created_at ASC, articles.title DESC
+ORDER BY articles.created_at ASC, articles.title
+DESC
 ```
 
 ## Tri par défaut
@@ -39,7 +40,8 @@ $sort->default('date', 'desc')->default('title', 'asc');
 
 ```sql
 -- GET /articles
-ORDER BY articles.created_at DESC, articles.title ASC
+ORDER BY articles.created_at
+DESC, articles.title ASC
 ```
 
 Dès que le client envoie `sort`, il remplace entièrement les tris par
@@ -76,12 +78,9 @@ FROM articles ORDER BY comments_count DESC
 
 | URL                | Erreur                                             |
 |--------------------|----------------------------------------------------|
-| `?sort[views]=asc` | `sort` : The sort field must be an array.          |
+| `?sort[views]=asc` | `sort` : The selected sort is invalid.             |
 | `?sort[title]=up`  | `sort.title` : The selected sort.title is invalid. |
-| `?sort=title`      | `sort` : The sort field must be an array.          |
-
-Une clé de tri non déclarée est refusée avec le message de la règle `array:`
-de Laravel, qui dit seulement que `sort` doit être un tableau.
+| `?sort=title`      | `sort` : The selected sort is invalid.             |
 
 Sans aucun tri déclaré, `sort` est interdit : `The sort field is
 prohibited.`
