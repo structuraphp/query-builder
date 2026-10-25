@@ -11,6 +11,7 @@ use Illuminate\Translation\PotentiallyTranslatedString;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 use StructuraPhp\QueryBuilder\Enum\Mode;
+use StructuraPhp\QueryBuilder\ValueObject\ScopeArgument;
 use Throwable;
 
 final readonly class ValidationCompiler
@@ -146,6 +147,27 @@ final readonly class ValidationCompiler
             // `filled` rejects an empty object, which `required_with` would
             // treat as an absent scope.
             $rules[$name] = ['sometimes', 'array', 'filled'];
+            $optional = array_all(
+                $arguments,
+                fn (ScopeArgument $argument): bool => $argument->default
+                    instanceof Closure,
+            );
+            if ($optional) {
+                // Every argument has a default: `1` applies the scope with
+                // them, like a scope without arguments.
+                $rules[$name] = [
+                    'sometimes',
+                    'required',
+                    Rule::when(
+                        fn (Fluent $input): bool => \is_array(
+                            $input->get($name),
+                        ),
+                        ['array', 'filled'],
+                        ['boolean'],
+                    ),
+                ];
+            }
+
             foreach ($arguments as $argument) {
                 $key = "{$name}.{$argument->name}";
                 $presence = $argument->default === null

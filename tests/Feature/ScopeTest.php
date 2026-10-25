@@ -207,6 +207,28 @@ final class ScopeTest extends TestCase
             ->assertJsonValidationErrors('publishedBetween.from');
     }
 
+    public function testScopeWithOnlyDefaultsTakesABoolean(): void
+    {
+        $enabled = $this->fetch(ScopeArticleQuery::class, ['minViews' => '1']);
+        $disabled = $this->fetch(ScopeArticleQuery::class, ['minViews' => '0']);
+
+        $enabled->assertOk();
+        $disabled->assertOk();
+        self::assertSame(['Mid', 'New'], self::column($enabled, 'title'));
+        self::assertCount(3, self::column($disabled, 'title'));
+    }
+
+    public function testScopeWithARequiredArgumentRejectsABoolean(): void
+    {
+        $response = $this->fetch(ScopeArticleQuery::class, [
+            'publishedBetween' => '1',
+        ]);
+
+        $response
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('publishedBetween');
+    }
+
     public function testScalarForArgScopeIs422(): void
     {
         $response = $this->fetch(ScopeArticleQuery::class, [

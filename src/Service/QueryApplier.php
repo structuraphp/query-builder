@@ -167,7 +167,8 @@ final readonly class QueryApplier
 
             $given = $validated[$name] ?? [];
             $enabled = filter_var($given, FILTER_VALIDATE_BOOLEAN);
-            if ($fromRequest === [] && !$enabled) {
+            // A boolean, for a scope without arguments or with defaults only.
+            if (!\is_array($given) && !$enabled) {
                 continue;
             }
 

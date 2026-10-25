@@ -96,7 +96,9 @@ GET /articles?publishedBetween[from]=2024-01-01
 {"publishedBetween.to": ["The publishedBetween.to field is required when published between is present."]}
 ```
 
-A scope with arguments is requested as an object: `?minViews=1` is rejected (`The min views field must be an array.`).
+A scope with a required argument is requested as an object:
+`?publishedBetween=1` is rejected. A scope whose arguments all have a
+default also takes a boolean (see [Default values](#default-values)).
 
 ## Types
 
@@ -175,6 +177,14 @@ $scope->scope('recent')
 ```sql
 -- GET /articles?recent[min]=10
 WHERE views >= 10
+```
+
+When every argument has a default, the scope also takes a boolean: `1`
+applies it with the defaults, `0` ignores it.
+
+```sql
+-- GET /articles?recent=1
+WHERE views >= 50
 ```
 
 A mutable date (`now()`) given as default is converted to the class the

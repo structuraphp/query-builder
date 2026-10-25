@@ -106,7 +106,10 @@ GET /articles?publishedBetween[from]=2024-01-01
 }
 ```
 
-Un scope avec arguments se demande comme un objet : `?minViews=1` est refusé (`The min views field must be an array.`).
+Un scope avec un argument obligatoire se demande comme un objet :
+`?publishedBetween=1` est refusé. Un scope dont tous les arguments ont une
+valeur par défaut accepte aussi un booléen (voir
+[Valeurs par défaut](#valeurs-par-défaut)).
 
 ## Types
 
@@ -196,6 +199,14 @@ $scope->scope('recent')
 ```sql
 -- GET /articles?recent[min]=10
 WHERE views >= 10
+```
+
+Quand tous les arguments ont une valeur par défaut, le scope accepte aussi
+un booléen : `1` l'applique avec les valeurs par défaut, `0` l'ignore.
+
+```sql
+-- GET /articles?recent=1
+WHERE views >= 50
 ```
 
 Une date mutable (`now()`) donnée par défaut est convertie dans la classe
