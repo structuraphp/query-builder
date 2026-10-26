@@ -60,7 +60,7 @@ final class RelationTest extends TestCase
     public function testSpacesAndEmptyItems(): void
     {
         $response = $this->fetch(RelationArticleQuery::class, [
-            'with' => ' author,,comments ',
+            'with' => ' author , ,comments ',
         ]);
 
         $response

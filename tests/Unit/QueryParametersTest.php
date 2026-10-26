@@ -6,6 +6,9 @@ namespace Tests\StructuraPhp\QueryBuilder\Unit;
 
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Translation\ArrayLoader;
+use Illuminate\Translation\Translator;
+use Illuminate\Validation\Factory;
 use Illuminate\Validation\ValidationException;
 use StructuraPhp\QueryBuilder\ValueObject\QueryParameters;
 use Tests\StructuraPhp\QueryBuilder\Fixtures\Queries\FilterArticleQuery;
@@ -80,5 +83,26 @@ final class QueryParametersTest extends TestCase
         }
 
         self::assertSame(['statut.value' => ['Statut invalide.']], $errors);
+    }
+
+    public function testFromArrayUsesTheGivenValidator(): void
+    {
+        $loader = new ArrayLoader();
+        $loader->addMessages('en', 'validation', [
+            'integer' => 'Not a number.',
+        ]);
+
+        $validator = new Factory(new Translator($loader, 'en'));
+        $errors = [];
+
+        try {
+            QueryParameters::fromArray(new FilterArticleQuery(), [
+                'views' => ['value' => 'abc'],
+            ], $validator);
+        } catch (ValidationException $validationException) {
+            $errors = $validationException->errors();
+        }
+
+        self::assertSame(['views.value' => ['Not a number.']], $errors);
     }
 }

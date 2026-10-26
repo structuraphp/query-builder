@@ -8,6 +8,7 @@ use Carbon\Carbon;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Closure;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Validation\Rules\Enum;
 use PHPUnit\Framework\Attributes\DataProvider;
 use RuntimeException;
@@ -18,6 +19,9 @@ use StructuraPhp\QueryBuilder\Service\ScopeReflector;
 use StructuraPhp\QueryBuilder\ValueObject\Config\ScopeConfig;
 use StructuraPhp\QueryBuilder\ValueObject\ScopeArgument;
 use Tests\StructuraPhp\QueryBuilder\Fixtures\Article;
+use Tests\StructuraPhp\QueryBuilder\Fixtures\ScopePriority;
+use Tests\StructuraPhp\QueryBuilder\Fixtures\ScopeTypedArticle;
+use Tests\StructuraPhp\QueryBuilder\Fixtures\ScopeVersion;
 use Tests\StructuraPhp\QueryBuilder\Fixtures\Status;
 use Tests\StructuraPhp\QueryBuilder\TestCase;
 
@@ -188,13 +192,175 @@ final class ScopeReflectorTest extends TestCase
         self::assertSame([], $author->rules);
     }
 
+    public function testBooleanArgument(): void
+    {
+        [$featured] = $this->arguments(
+            new ScopeConfig('featured'),
+            new ScopeTypedArticle(),
+        );
+
+        self::assertSame(['boolean'], $featured->rules);
+        self::assertTrue(($featured->cast)('1'));
+    }
+
+    public function testFloatArgument(): void
+    {
+        [$rating] = $this->arguments(
+            new ScopeConfig('ratedAbove'),
+            new ScopeTypedArticle(),
+        );
+
+        self::assertSame(['numeric'], $rating->rules);
+        self::assertSame(1.5, ($rating->cast)('1.5'));
+    }
+
+    public function testIntBackedEnumArgumentCastsTheString(): void
+    {
+        [$priority] = $this->arguments(
+            new ScopeConfig('ofPriority'),
+            new ScopeTypedArticle(),
+        );
+
+        self::assertSame(ScopePriority::High, ($priority->cast)('2'));
+    }
+
+    public function testStringBackedEnumArgumentCastsAnInteger(): void
+    {
+        [$version] = $this->arguments(
+            new ScopeConfig('ofVersion'),
+            new ScopeTypedArticle(),
+        );
+
+        self::assertSame(ScopeVersion::Two, ($version->cast)(2));
+    }
+
+    public function testBuilderMethodReceivesEveryArgument(): void
+    {
+        $arguments = $this->arguments(
+            new ScopeConfig('viewsBetween'),
+            new ScopeTypedArticle(),
+        );
+        $names = array_map(
+            fn (ScopeArgument $argument): string => $argument->name,
+            $arguments,
+        );
+
+        self::assertSame(['min', 'max'], $names);
+    }
+
+    public function testDateDefaultOfTheExpectedClassIsKept(): void
+    {
+        $date = CarbonImmutable::parse('2024-01-02');
+        $config = new ScopeConfig('publishedBetween')->default(to: $date);
+
+        [, $to] = $this->arguments($config);
+        $default = $to->default instanceof Closure ? ($to->default)() : null;
+
+        self::assertSame($date, $default);
+    }
+
+    public function testContextNamesAddUpOverSeveralCalls(): void
+    {
+        $config = new ScopeConfig('ownedBy')
+            ->context('status')
+            ->context('author');
+
+        [$status, $author] = $this->arguments($config);
+
+        self::assertTrue($status->context);
+        self::assertTrue($author->context);
+    }
+
+    public function testSeveralContextNamesInOneCall(): void
+    {
+        $config = new ScopeConfig('ownedBy')->context('status', 'author');
+
+        [$status, $author] = $this->arguments($config);
+
+        self::assertTrue($status->context);
+        self::assertTrue($author->context);
+    }
+
+    public function testContextNamesSpreadFromAMapAreAllKept(): void
+    {
+        $config = new ScopeConfig('ownedBy')
+            ->context(...['name' => 'status'])
+            ->context(...['name' => 'author']);
+
+        [$status, $author] = $this->arguments($config);
+
+        self::assertTrue($status->context);
+        self::assertTrue($author->context);
+    }
+
+    public function testCastsAddUpOverSeveralCalls(): void
+    {
+        $config = new ScopeConfig('near')
+            ->cast(lat: Type::Float)
+            ->cast(lng: Type::Integer);
+
+        [$lat, $lng] = $this->arguments($config);
+
+        self::assertSame(['numeric'], $lat->rules);
+        self::assertSame(['integer'], $lng->rules);
+    }
+
+    public function testOptionsAddUpOverSeveralCalls(): void
+    {
+        $config = new ScopeConfig('matching')
+            ->default(ids: [1])
+            ->default(titles: ['Foo'])
+            ->rules(ids: ['max:2'])
+            ->rules(titles: ['max:3'])
+            ->each(ids: ['integer'])
+            ->each(titles: ['string'])
+            ->nested(ids: ['*' => ['integer']])
+            ->nested(titles: ['*' => ['string']])
+            ->messages(ids: ['max' => 'Ids.'])
+            ->messages(titles: ['max' => 'Titles.'])
+            ->attribute(ids: 'identifiants')
+            ->attribute(titles: 'titres');
+
+        [$ids, $titles] = $this->arguments($config, new ScopeTypedArticle());
+
+        self::assertInstanceOf(Closure::class, $ids->default);
+        self::assertSame(['Foo'], $titles->default instanceof Closure
+            ? ($titles->default)()
+            : null);
+        self::assertSame(['array', 'max:2'], $ids->rules);
+        self::assertSame(['array', 'max:3'], $titles->rules);
+        self::assertSame(['integer'], $ids->each);
+        self::assertSame(['string'], $titles->each);
+        self::assertSame(['*' => ['integer']], $ids->nested);
+        self::assertSame(['*' => ['string']], $titles->nested);
+        self::assertSame(['max' => 'Ids.'], $ids->messages);
+        self::assertSame(['max' => 'Titles.'], $titles->messages);
+        self::assertSame('identifiants', $ids->attribute);
+        self::assertSame('titres', $titles->attribute);
+    }
+
+    public function testNestedAttributesOfAnArgumentAddUp(): void
+    {
+        $config = new ScopeConfig('inRanges')
+            ->attribute(ranges: ['*.min' => 'minimum'])
+            ->attribute(ranges: ['*.max' => 'maximum']);
+
+        [$ranges] = $this->arguments($config);
+
+        self::assertSame(
+            ['*.min' => 'minimum', '*.max' => 'maximum'],
+            $ranges->nestedAttributes,
+        );
+    }
+
     /**
      * @param Closure(): ScopeConfig $config
      */
     #[DataProvider('invalidConfigs')]
-    public function testConfigErrors(Closure $config): void
+    public function testConfigErrors(Closure $config, string $message): void
     {
         $this->expectException(ConfigurationException::class);
+        $this->expectExceptionMessage($message);
 
         $this->arguments($config());
     }
@@ -202,100 +368,123 @@ final class ScopeReflectorTest extends TestCase
     /**
      * Configs are built lazily: some of them throw while being declared.
      *
-     * @return iterable<string, array{Closure(): ScopeConfig}>
+     * @return iterable<string, array{Closure(): ScopeConfig, string}>
      */
     public static function invalidConfigs(): iterable
     {
+        $untyped = 'needs a scalar, enum, date or array type, or an'
+            . ' explicit cast().';
+        $context = 'comes from the context: it takes no';
+
         yield 'unknown scope' => [
             fn (): ScopeConfig => new ScopeConfig('missing'),
+            'Scope "missing" does not exist on ' . Article::class . '.',
         ];
 
         yield 'untyped without cast' => [
             fn (): ScopeConfig => new ScopeConfig('near'),
+            'Scope "near" argument "lat" ' . $untyped,
         ];
 
         yield 'unknown default argument' => [
             fn (): ScopeConfig => new ScopeConfig('publishedBetween')->default(
                 foo: 1,
             ),
+            'Scope "publishedBetween" has no argument "foo".',
         ];
 
         yield 'unknown cast argument' => [
             fn (): ScopeConfig => new ScopeConfig('publishedBetween')->cast(
                 foo: Type::String,
             ),
+            'Scope "publishedBetween" has no argument "foo".',
         ];
 
         yield 'positional rules' => [
             fn (): ScopeConfig => new ScopeConfig('ofStatuses')->rules([
                 'max:2',
             ]),
+            'Scope "ofStatuses" options must use named arguments.',
         ];
 
-        yield 'union type' => [fn (): ScopeConfig => new ScopeConfig('union')];
+        yield 'union type' => [
+            fn (): ScopeConfig => new ScopeConfig('union'),
+            'Scope "union" argument "value" ' . $untyped,
+        ];
 
         yield 'unknown context argument' => [
             fn (): ScopeConfig => new ScopeConfig('ownedBy')->context('foo'),
+            'Scope "ownedBy" has no argument "foo".',
         ];
 
         yield 'rules on a context argument' => [
             fn (): ScopeConfig => new ScopeConfig('ownedBy')
                 ->context('author')
                 ->rules(author: ['required']),
+            'Scope "ownedBy" argument "author" ' . $context . ' rules().',
         ];
 
         yield 'cast on a context argument' => [
             fn (): ScopeConfig => new ScopeConfig('ownedBy')
                 ->context('author')
                 ->cast(author: Type::Integer),
+            'Scope "ownedBy" argument "author" ' . $context . ' cast().',
         ];
 
         yield 'each on a context argument' => [
             fn (): ScopeConfig => new ScopeConfig('among')
                 ->context('ids')
                 ->each(ids: ['integer']),
+            'Scope "among" argument "ids" ' . $context . ' each().',
         ];
 
         yield 'messages on a context argument' => [
             fn (): ScopeConfig => new ScopeConfig('ownedBy')
                 ->context('author')
                 ->messages(author: ['required' => 'Foo.']),
+            'Scope "ownedBy" argument "author" ' . $context . ' messages().',
         ];
 
         yield 'attribute on a context argument' => [
             fn (): ScopeConfig => new ScopeConfig('ownedBy')
                 ->context('author')
                 ->attribute(author: 'auteur'),
+            'Scope "ownedBy" argument "author" ' . $context . ' attribute().',
         ];
 
         yield 'unknown nested argument' => [
             fn (): ScopeConfig => new ScopeConfig('inRanges')->nested(
                 foo: ['*' => ['array']],
             ),
+            'Scope "inRanges" has no argument "foo".',
         ];
 
         yield 'positional nested' => [
             fn (): ScopeConfig => new ScopeConfig('inRanges')->nested([
                 '*' => ['array'],
             ]),
+            'Scope "inRanges" options must use named arguments.',
         ];
 
         yield 'nested on a context argument' => [
             fn (): ScopeConfig => new ScopeConfig('among')
                 ->context('ids')
                 ->nested(ids: ['*' => ['integer']]),
+            'Scope "among" argument "ids" ' . $context . ' nested().',
         ];
 
         yield 'unknown nested attribute argument' => [
             fn (): ScopeConfig => new ScopeConfig('inRanges')->attribute(
                 foo: ['*.min' => 'minimum'],
             ),
+            'Scope "inRanges" has no argument "foo".',
         ];
 
         yield 'nested attribute on a context argument' => [
             fn (): ScopeConfig => new ScopeConfig('among')
                 ->context('ids')
                 ->attribute(ids: ['*' => 'identifiant']),
+            'Scope "among" argument "ids" ' . $context . ' attribute().',
         ];
 
         yield 'cast to non enum class' => [
@@ -304,14 +493,18 @@ final class ScopeReflectorTest extends TestCase
                 lat: stdClass::class,
                 lng: Type::Float,
             ),
+            'Scope "near" argument "lat" cast must be a Type, a backed enum'
+                . ' or a closure.',
         ];
     }
 
     /**
      * @return list<ScopeArgument>
      */
-    private function arguments(ScopeConfig $config): array
-    {
-        return new ScopeReflector()->arguments(new Article(), $config);
+    private function arguments(
+        ScopeConfig $config,
+        Model $model = new Article(),
+    ): array {
+        return new ScopeReflector()->arguments($model, $config);
     }
 }

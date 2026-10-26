@@ -50,29 +50,26 @@ final readonly class QueryApplier
     }
 
     /**
-     * @return list<string>
+     * @return array<int, string>
      */
     public static function relationNames(string $with): array
     {
         $names = array_map(trim(...), explode(',', $with));
 
-        return array_values(array_filter(
-            $names,
-            fn (string $name): bool => $name !== '',
-        ));
+        return array_filter($names, fn (string $name): bool => $name !== '');
     }
 
     /**
      * @param list<ScopeArgument> $arguments
      *
-     * @return list<ScopeArgument>
+     * @return array<int, ScopeArgument>
      */
     public static function fromRequest(array $arguments): array
     {
-        return array_values(array_filter(
+        return array_filter(
             $arguments,
             fn (ScopeArgument $argument): bool => !$argument->context,
-        ));
+        );
     }
 
     /**
@@ -257,12 +254,15 @@ final readonly class QueryApplier
     {
         $counted = [];
         $sorts = $validated['sort'] ?? null;
+
+        // An int key looks a sort up like its string form.
+        /** @var list<array{string, mixed}> $pairs */
         $pairs = \is_array($sorts)
-            ? array_map(null, array_keys($sorts), array_values($sorts))
+            ? array_map(null, array_keys($sorts), $sorts)
             : $this->definition->defaultSorts;
 
         foreach ($pairs as [$name, $direction]) {
-            $config = $this->definition->sorts[(string) $name] ?? null;
+            $config = $this->definition->sorts[$name] ?? null;
             if ($config === null) {
                 continue;
             }
@@ -283,7 +283,8 @@ final readonly class QueryApplier
     }
 
     /**
-     * Requested counts and those a sort needs, each counted once.
+     * Requested counts and those a sort needs: withCount() counts a
+     * relation named twice once.
      *
      * @param Builder<Model> $query
      * @param array<string, mixed> $validated
@@ -296,18 +297,12 @@ final readonly class QueryApplier
     ): void {
         $count = $validated['count'] ?? null;
         $requested = \is_string($count) ? self::relationNames($count) : [];
-        $names = array_values(array_unique([...$requested, ...$sorted]));
-        if ($names === []) {
-            return;
-        }
-
-        $query->withCount(array_map(
-            fn (string $name): string => $name
-                . ' as ' . $this->countAlias($name),
-            $names,
-        ));
+        $query->withCount([...$requested, ...$sorted]);
     }
 
+    /**
+     * The alias withCount() gives the count of a relation with a valid name.
+     */
     private function countAlias(string $relation): string
     {
         return Str::snake($relation) . '_count';

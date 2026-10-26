@@ -209,4 +209,32 @@ final class TypeTest extends TestCase
 
         self::assertSame(['B'], $titles);
     }
+
+    public function testInWrapsASingleValue(): void
+    {
+        DB::table('articles')->insert([
+            ['title' => 'A', 'views' => 10],
+            ['title' => 'B', 'views' => 200],
+        ]);
+        $query = Article::query();
+
+        Type::Integer->apply($query, 'views', Mode::In, 200);
+        $titles = $query->pluck('title')->all();
+
+        self::assertSame(['B'], $titles);
+    }
+
+    public function testDateComparesAnUncastValueAsIs(): void
+    {
+        $query = Article::query();
+
+        Type::Date->apply($query, 'published_at', Mode::Equal, '2024-01-02');
+        $base = $query->getQuery();
+
+        self::assertSame(
+            'select * from "articles" where "published_at" = ?',
+            $base->toSql(),
+        );
+        self::assertSame(['2024-01-02'], $base->getBindings());
+    }
 }

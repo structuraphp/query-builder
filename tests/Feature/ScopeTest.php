@@ -218,6 +218,17 @@ final class ScopeTest extends TestCase
         self::assertCount(3, self::column($disabled, 'title'));
     }
 
+    public function testScopeWithOnlyDefaultsRejectsANonBoolean(): void
+    {
+        $response = $this->fetch(ScopeArticleQuery::class, [
+            'minViews' => 'abc',
+        ]);
+
+        $response
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('minViews');
+    }
+
     public function testScopeWithARequiredArgumentRejectsABoolean(): void
     {
         $response = $this->fetch(ScopeArticleQuery::class, [

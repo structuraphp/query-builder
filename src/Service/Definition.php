@@ -55,11 +55,8 @@ final class Definition
     /** @var array<string, RelationConfig> */
     public private(set) array $relations = [];
 
-    /** @var array<string, true> relations the client may count */
+    /** @var array<string, string> relations the client may count, by name */
     public private(set) array $counts = [];
-
-    /** @var array<string, true> root names taken by filters and scopes */
-    private array $rootNames = [];
 
     private function __construct(
         public readonly Model $model,
@@ -131,7 +128,7 @@ final class Definition
                     ));
                 }
 
-                $definition->counts[$name] = true;
+                $definition->counts[$name] = $name;
             }
         }
 
@@ -143,7 +140,7 @@ final class Definition
     /**
      * Filters and scopes share the root of the query string.
      */
-    public function assertName(string $name): void
+    private function assertName(string $name): void
     {
         $this->assertValidName($name);
 
@@ -154,14 +151,12 @@ final class Definition
             ));
         }
 
-        if (isset($this->rootNames[$name])) {
+        if (isset($this->filters[$name]) || isset($this->scopes[$name])) {
             throw new ConfigurationException(\sprintf(
                 '"%s" is declared twice.',
                 $name,
             ));
         }
-
-        $this->rootNames[$name] = true;
     }
 
     /**

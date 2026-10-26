@@ -116,7 +116,8 @@ final class ScopeReflector
         }
 
         $method = $config->method ?? $config->name;
-        $prefixed = 'scope' . ucfirst($method);
+        // Method names are case-insensitive: no ucfirst() needed.
+        $prefixed = 'scope' . $method;
 
         if (method_exists($model, $prefixed)) {
             return new ReflectionMethod($model, $prefixed);

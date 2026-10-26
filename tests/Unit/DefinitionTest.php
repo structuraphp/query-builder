@@ -23,38 +23,67 @@ final class DefinitionTest extends TestCase
      * @param Closure(PaginationInterface): void $configure
      */
     #[DataProvider('invalidPagination')]
-    public function testInvalidPaginationConfigThrows(Closure $configure): void
-    {
-        $this->expectException(ConfigurationException::class);
+    public function testInvalidPaginationConfigThrows(
+        Closure $configure,
+        string $message,
+    ): void {
+        $this->expectExceptionObject(new ConfigurationException($message));
         $query = new ConfigurableQuery(pagination: $configure);
 
         Definition::fromQuery($query);
     }
 
     /**
-     * @return iterable<string, array{Closure(PaginationInterface): void}>
+     * @return iterable<string, array{
+     *     Closure(PaginationInterface): void,
+     *     string,
+     * }>
      */
     public static function invalidPagination(): iterable
     {
         yield 'unknown default' => [function (PaginationInterface $p): void {
             $p->default('page');
-        }];
+        }, 'Unknown pagination mode "page".'];
 
         yield 'unknown allowed' => [function (PaginationInterface $p): void {
             $p->allow('offset', 'page');
-        }];
+        }, 'Unknown pagination mode "page".'];
 
         yield 'refused default' => [function (PaginationInterface $p): void {
             $p->allow('offset')->default('cursor');
-        }];
+        }, 'Default pagination mode "cursor" is not allowed.'];
 
         yield 'limit below 1' => [function (PaginationInterface $p): void {
             $p->limit(0);
-        }];
+        }, 'Pagination limit must be between 1 and 100.'];
 
         yield 'limit above max' => [function (PaginationInterface $p): void {
-            $p->limit(200);
-        }];
+            $p->limit(101);
+        }, 'Pagination limit must be between 1 and 100.'];
+    }
+
+    #[DataProvider('limitBounds')]
+    public function testLimitBoundsAreAllowed(int $limit): void
+    {
+        $query = new ConfigurableQuery(
+            pagination: function (PaginationInterface $p) use ($limit): void {
+                $p->limit($limit);
+            },
+        );
+
+        $definition = Definition::fromQuery($query);
+
+        self::assertSame($limit, $definition->pagination->limit);
+    }
+
+    /**
+     * @return iterable<string, array{int}>
+     */
+    public static function limitBounds(): iterable
+    {
+        yield 'one' => [1];
+
+        yield 'max' => [100];
     }
 
     /**
@@ -166,6 +195,11 @@ final class DefinitionTest extends TestCase
             $s->scope('limit')->method('popular');
         }];
 
+        yield 'duplicate' => [function (ScopeInterface $s): void {
+            $s->scope('hot')->method('popular');
+            $s->scope('hot')->method('popular');
+        }];
+
         yield 'dot in name' => [function (ScopeInterface $s): void {
             $s->scope('a.b')->method('popular');
         }];
@@ -200,5 +234,40 @@ final class DefinitionTest extends TestCase
         yield 'comma' => ['author,comments'];
 
         yield 'colon' => ['author:id'];
+
+        yield 'bad nested segment' => ['author.comments:id'];
+    }
+
+    public function testCountMustBeARootRelation(): void
+    {
+        $this->expectExceptionObject(new ConfigurationException(
+            '"author.comments" is not a valid name.',
+        ));
+        $query = new ConfigurableQuery(
+            relation: function (RelationInterface $relation): void {
+                $relation->count('author.comments');
+            },
+        );
+
+        Definition::fromQuery($query);
+    }
+
+    public function testDefaultCountSortRefusesDefaultCursor(): void
+    {
+        $this->expectExceptionObject(new ConfigurationException(
+            'Default sort "popularity" counts a relation: it cannot be used'
+            . ' with the default cursor pagination.',
+        ));
+        $query = new ConfigurableQuery(
+            pagination: function (PaginationInterface $p): void {
+                $p->default('cursor');
+            },
+            sort: function (SortInterface $s): void {
+                $s->sort('popularity')->count('comments');
+                $s->default('popularity');
+            },
+        );
+
+        Definition::fromQuery($query);
     }
 }

@@ -89,6 +89,32 @@ final class CountTest extends TestCase
         self::assertSame(1, substr_count($sql, 'as "comments_count"'));
     }
 
+    public function testSortBySeveralCounts(): void
+    {
+        DB::table('authors')->insert([
+            'id' => 1,
+            'name' => 'Ada',
+            'email' => 'ada@example.com',
+            'password' => 'secret',
+        ]);
+        DB::table('articles')->where('id', 1)->update(['author_id' => 1]);
+        $query = new ConfigurableQuery(
+            sort: function (SortInterface $sort): void {
+                $sort->sort('author')->count('author');
+                $sort->sort('comments')->count('comments');
+            },
+        );
+
+        $rows = $this->rows(
+            ['sort' => ['author' => 'desc', 'comments' => 'desc']],
+            $query,
+        );
+
+        self::assertSame(['Foo', 'Bar', 'Baz'], array_column($rows, 'title'));
+        self::assertSame([1, 0, 0], array_column($rows, 'author_count'));
+        self::assertSame([0, 2, 1], array_column($rows, 'comments_count'));
+    }
+
     public function testDefaultSortByCount(): void
     {
         $query = $this->articleQuery(self::defaultCountSort(...));

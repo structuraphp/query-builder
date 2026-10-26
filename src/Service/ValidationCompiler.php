@@ -146,7 +146,7 @@ final readonly class ValidationCompiler
 
             // `filled` rejects an empty object, which `required_with` would
             // treat as an absent scope.
-            $rules[$name] = ['sometimes', 'array', 'filled'];
+            $rules[$name] = ['array', 'filled'];
             $optional = array_all(
                 $arguments,
                 fn (ScopeArgument $argument): bool => $argument->default
@@ -211,9 +211,9 @@ final readonly class ValidationCompiler
                 $modes[] = Mode::IsNull;
             }
 
-            $single = [...$type->rules(), ...$config->rules];
+            $single = array_merge($type->rules(), $config->rules);
 
-            $rules[$name] = ['sometimes', 'array'];
+            $rules[$name] = ['array'];
             $rules["{$name}.value"] = $this->valueRules($name, $modes, $single);
             if (\in_array(Mode::In, $modes, true)) {
                 // In `in` mode, each item gets the rules of a single value.
@@ -223,7 +223,7 @@ final readonly class ValidationCompiler
             $rules["{$name}.mode"] = [
                 'sometimes',
                 'required',
-                Rule::in(array_map(fn (Mode $mode) => $mode->value, $modes)),
+                Rule::in($modes),
             ];
             $rules["{$name}.not"] = ['sometimes', 'required', 'boolean'];
         }
@@ -296,7 +296,7 @@ final readonly class ValidationCompiler
         // `array:` keeps the client's key order in validated(), which sets
         // the priority. One rule per key rather than `sort.*`, so
         // documentation generators list each sort.
-        $rules = ['sort' => ['sometimes', 'array:' . implode(',', $names)]];
+        $rules = ['sort' => ['array:' . implode(',', $names)]];
         foreach ($names as $name) {
             $rules["sort.{$name}"] = [
                 'sometimes',
@@ -339,17 +339,16 @@ final readonly class ValidationCompiler
         ) use ($declared): void {
             /** @var Closure(string): PotentiallyTranslatedString $fail */
             $with = \is_string($value) ? $value : '';
-            $names = QueryApplier::relationNames($with);
-            foreach ($names as $name) {
-                if (!isset($declared[$name])) {
-                    $fail('validation.in')->translate();
-
-                    return;
-                }
+            $unknown = array_any(
+                QueryApplier::relationNames($with),
+                fn (string $name): bool => !isset($declared[$name]),
+            );
+            if ($unknown) {
+                $fail('validation.in')->translate();
             }
         };
 
-        return [$key => ['sometimes', 'string', $rule]];
+        return [$key => ['string', $rule]];
     }
 
     /**
@@ -409,7 +408,7 @@ final readonly class ValidationCompiler
         $counted = array_any(
             $names,
             fn (int|string $name): bool => ($this->definition
-                ->sorts[(string) $name] ?? null)?->count !== null,
+                ->sorts[$name] ?? null)?->count !== null,
         );
         if (!$counted) {
             return;

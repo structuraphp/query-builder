@@ -49,6 +49,18 @@ final class BuilderScopeTest extends TestCase
         self::assertSame(['Bar'], $titles);
     }
 
+    public function testAliasedBuilderMethodWinsOverAModelScope(): void
+    {
+        $titles = $this->titles(
+            BuiltArticle::class,
+            'atLeast',
+            ['atLeast' => ['min' => '10']],
+            'viewsAtLeast',
+        );
+
+        self::assertSame(['Bar'], $titles);
+    }
+
     public function testBuilderMethodArgumentsAreValidated(): void
     {
         $this->expectException(ValidationException::class);
@@ -73,11 +85,18 @@ final class BuilderScopeTest extends TestCase
      *
      * @return list<mixed>
      */
-    private function titles(string $model, string $name, array $input): array
-    {
+    private function titles(
+        string $model,
+        string $name,
+        array $input,
+        ?string $method = null,
+    ): array {
         $query = new ConfigurableQuery(
-            scope: function (ScopeInterface $scope) use ($name): void {
-                $scope->scope($name);
+            scope: function (ScopeInterface $scope) use ($name, $method): void {
+                $config = $scope->scope($name);
+                if ($method !== null) {
+                    $config->method($method);
+                }
             },
             model: $model,
         );

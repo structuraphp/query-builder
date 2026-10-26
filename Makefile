@@ -121,6 +121,11 @@ coverage: ## Run tests with coverage summary (pcov)
 	$(call printSection,COVERAGE)
 	${BIN_DIR}/phpunit --coverage-text --only-summary-for-coverage-text
 
+.PHONY: infection
+infection: ## Run mutation testing (Infection, pcov)
+	$(call printSection,INFECTION)
+	${BIN_DIR}/infection --threads=max --show-mutations
+
 #  _____ _____
 # /  __ \_   _|
 # | /  \/ | |
@@ -141,3 +146,4 @@ ci: ## Run all CI checks
 	$(MAKE) --no-print-directory dependency
 	$(COMPOSER) audit
 	$(MAKE) --no-print-directory test
+	$(MAKE) --no-print-directory infection
