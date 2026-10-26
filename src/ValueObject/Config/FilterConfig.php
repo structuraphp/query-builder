@@ -23,6 +23,8 @@ final class FilterConfig implements FilterConfigInterface
 
     public private(set) bool $nullable = false;
 
+    public private(set) int $maxItems = 256;
+
     public function __construct(
         public readonly string $name,
     ) {}
@@ -65,6 +67,13 @@ final class FilterConfig implements FilterConfigInterface
     public function nullable(): static
     {
         $this->nullable = true;
+
+        return $this;
+    }
+
+    public function maxItems(int $max): static
+    {
+        $this->maxItems = $max;
 
         return $this;
     }

@@ -267,6 +267,13 @@ final class Definition
             ));
         }
 
+        if ($config->maxItems < 1) {
+            throw new ConfigurationException(\sprintf(
+                'Filter "%s" must accept at least one item in in mode.',
+                $config->name,
+            ));
+        }
+
         $this->filters[$config->name] = $config;
     }
 

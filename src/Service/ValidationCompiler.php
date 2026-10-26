@@ -238,7 +238,12 @@ final readonly class ValidationCompiler
             $single = array_merge(TypeCaster::rules($type), $config->rules);
 
             $rules[$name] = ['array'];
-            $rules["{$name}.value"] = $this->valueRules($name, $modes, $single);
+            $rules["{$name}.value"] = $this->valueRules(
+                $name,
+                $modes,
+                $single,
+                $config->maxItems,
+            );
             if (\in_array(Mode::In, $modes, true)) {
                 // In `in` mode, each item gets the rules of a single value.
                 $rules["{$name}.value.*"] = $single;
@@ -269,6 +274,7 @@ final readonly class ValidationCompiler
         string $name,
         array $modes,
         array $single,
+        int $maxItems,
     ): array {
         $in = \in_array(Mode::In, $modes, true);
         $null = \in_array(Mode::IsNull, $modes, true);
@@ -292,7 +298,7 @@ final readonly class ValidationCompiler
                 ? [Rule::when(
                     static fn (Fluent $input): bool => $mode($input)
                         === Mode::In->value,
-                    ['array', 'min:1'],
+                    ['array', 'min:1', "max:{$maxItems}"],
                 )]
                 : [],
             Rule::when(

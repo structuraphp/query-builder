@@ -103,6 +103,12 @@ WHERE articles.views IN (10, 300)
 Avec `not=1`, il devient `NOT IN`. En mode `in`, `value` doit être une liste
 non vide ; dans les autres modes, une valeur seule.
 
+La liste compte au plus 256 valeurs ; `maxItems()` change la limite :
+
+```php
+$filter->filter('views')->type(Type::Integer)->maxItems(500);
+```
+
 ### Booléen
 
 ```php
@@ -240,6 +246,7 @@ GET /articles?statut[value]=archived
 Une `ConfigurationException` est levée à la lecture de la query :
 
 - filtre sans `type()` ;
+- `maxItems()` inférieur à 1 ;
 - nom réservé (`with`, `count`, `sort`, `pagination`, `page`, `cursor`, `limit`),
   déclaré deux fois (y compris face à un scope), ou qui n'est pas fait que de
   lettres, chiffres et `_`.

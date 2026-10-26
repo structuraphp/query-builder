@@ -6,7 +6,12 @@ namespace Tests\StructuraPhp\QueryBuilder\Feature;
 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Testing\TestResponse;
+use Illuminate\Validation\ValidationException;
+use StructuraPhp\QueryBuilder\Contract\Config\FilterInterface;
+use StructuraPhp\QueryBuilder\Enum\Type;
+use StructuraPhp\QueryBuilder\ValueObject\QueryParameters;
 use Symfony\Component\HttpFoundation\Response;
+use Tests\StructuraPhp\QueryBuilder\Fixtures\Queries\ConfigurableQuery;
 use Tests\StructuraPhp\QueryBuilder\Fixtures\Queries\FilterArticleQuery;
 use Tests\StructuraPhp\QueryBuilder\Fixtures\TestQueryRequest;
 use Tests\StructuraPhp\QueryBuilder\TestCase;
@@ -220,6 +225,47 @@ final class FilterTest extends TestCase
             'Statut invalide.',
             self::errorMessage($response, 'statut.value.1'),
         );
+    }
+
+    public function testInModeTakesAtMost256Values(): void
+    {
+        $values = array_map(strval(...), range(1, 256));
+
+        $max = $this->fetch(FilterArticleQuery::class, [
+            'views' => ['value' => $values, 'mode' => 'in'],
+        ]);
+        $more = $this->fetch(FilterArticleQuery::class, [
+            'views' => ['value' => [...$values, '257'], 'mode' => 'in'],
+        ]);
+
+        $max->assertOk();
+        $more->assertUnprocessable();
+        self::assertSame(
+            'The views field must not have more than 256 items.',
+            self::errorMessage($more, 'views.value'),
+        );
+    }
+
+    public function testMaxItemsSetsTheLimitOfInMode(): void
+    {
+        $query = new ConfigurableQuery(
+            filter: static function (FilterInterface $filter): void {
+                $filter->filter('views')->type(Type::Integer)->maxItems(2);
+            },
+        );
+
+        $two = QueryParameters::fromArray($query, [
+            'views' => ['value' => [10, 300], 'mode' => 'in'],
+        ]);
+
+        self::assertSame(
+            ['Foo', 'Baz'],
+            $two->builder()->pluck('title')->all(),
+        );
+        $this->expectException(ValidationException::class);
+        QueryParameters::fromArray($query, [
+            'views' => ['value' => [10, 300, 5], 'mode' => 'in'],
+        ]);
     }
 
     public function testDateHasNoInMode(): void

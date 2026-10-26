@@ -28,4 +28,9 @@ interface FilterConfigInterface
      * Adds the `null` mode: `IS NULL`, or `IS NOT NULL` with `not`.
      */
     public function nullable(): static;
+
+    /**
+     * Most values the client may send in `in` mode (256 by default).
+     */
+    public function maxItems(int $max): static;
 }

@@ -124,6 +124,25 @@ final class DefinitionTest extends TestCase
         yield 'star in name' => [static function (FilterInterface $f): void {
             $f->filter('a*')->type(Type::String);
         }];
+
+        yield 'no item in in mode' => [static function (
+            FilterInterface $f,
+        ): void {
+            $f->filter('views')->type(Type::Integer)->maxItems(0);
+        }];
+    }
+
+    public function testOneItemInInModeIsEnough(): void
+    {
+        $query = new ConfigurableQuery(
+            filter: static function (FilterInterface $f): void {
+                $f->filter('views')->type(Type::Integer)->maxItems(1);
+            },
+        );
+
+        $definition = Definition::fromQuery($query);
+
+        self::assertSame(1, $definition->filters['views']->maxItems);
     }
 
     /**
