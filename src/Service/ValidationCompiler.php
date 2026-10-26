@@ -338,7 +338,10 @@ final readonly class ValidationCompiler
     private function relationRules(): array
     {
         return [
-            ...$this->listRules('with', $this->definition->relations),
+            ...$this->listRules(
+                'with',
+                array_keys($this->definition->relations),
+            ),
             ...$this->listRules('count', $this->definition->counts),
         ];
     }
@@ -346,7 +349,7 @@ final readonly class ValidationCompiler
     /**
      * A comma-separated list of declared names (`with`, `count`).
      *
-     * @param array<string, mixed> $declared
+     * @param list<string> $declared
      *
      * @return array<string, list<mixed>>
      */
@@ -365,7 +368,11 @@ final readonly class ValidationCompiler
             $with = \is_string($value) ? $value : '';
             $unknown = array_any(
                 QueryApplier::relationNames($with),
-                static fn (string $name): bool => !isset($declared[$name]),
+                static fn (string $name): bool => !\in_array(
+                    $name,
+                    $declared,
+                    true,
+                ),
             );
             if ($unknown) {
                 $fail('validation.in')->translate();

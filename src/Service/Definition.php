@@ -57,7 +57,7 @@ final class Definition
     /** @var array<string, RelationConfig> */
     public private(set) array $relations = [];
 
-    /** @var array<string, string> relations the client may count, by name */
+    /** @var list<string> relations the client may count */
     public private(set) array $counts = [];
 
     private function __construct(
@@ -127,14 +127,14 @@ final class Definition
 
             foreach ($relation->counts as $name) {
                 $definition->assertCountable($name);
-                if (isset($definition->counts[$name])) {
+                if (\in_array($name, $definition->counts, true)) {
                     throw new ConfigurationException(\sprintf(
                         'Count "%s" is declared twice.',
                         $name,
                     ));
                 }
 
-                $definition->counts[$name] = $name;
+                $definition->counts[] = $name;
             }
         }
 

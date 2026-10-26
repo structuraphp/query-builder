@@ -26,11 +26,13 @@ abstract class QueryRequest extends FormRequest
 
     public function parameters(): QueryParameters
     {
-        return new QueryParameters(
-            $this->definition(),
-            $this->validatedQuery(),
-            $this->queryData(),
-        );
+        /** @var array<string, mixed> $validated */
+        $validated = $this->validator->validated();
+
+        /** @var array<string, mixed> $data */
+        $data = $this->validationData();
+
+        return new QueryParameters($this->definition(), $validated, $data);
     }
 
     /**
@@ -55,7 +57,8 @@ abstract class QueryRequest extends FormRequest
     ): Validator {
         $compiler = new ValidationCompiler($this->definition());
 
-        $data = $this->queryData();
+        /** @var array<string, mixed> $data */
+        $data = $this->validationData();
 
         /** @var array<string, mixed> $rules */
         $rules = $this->validationRules();
@@ -78,23 +81,5 @@ abstract class QueryRequest extends FormRequest
         }
 
         return $validator;
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function validatedQuery(): array
-    {
-        /** @var array<string, mixed> */
-        return $this->validator->validated();
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function queryData(): array
-    {
-        /** @var array<string, mixed> */
-        return $this->validationData();
     }
 }
