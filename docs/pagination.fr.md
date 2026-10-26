@@ -120,9 +120,15 @@ La page suivante renvoie le curseur :
 GET /articles?pagination=cursor&limit=2&cursor=eyJ…
 ```
 
-Un curseur qui ne se décode pas, ou qui ne correspond pas à la requête (valeurs trafiquées), est une erreur de
-validation sur `cursor` : `The
-selected cursor is invalid.`
+Un curseur qui ne se décode pas, ne correspond pas aux tris de la requête, ou
+contient une valeur qui n'est pas scalaire, est une erreur de validation sur
+`cursor` : `The selected cursor is invalid.`
+
+Le client peut lire et modifier le curseur : il contient les valeurs des
+colonnes triées de la dernière ligne, et le client peut les changer pour
+partir de n'importe quelle valeur. Il ne contient donc jamais de colonne
+cachée : un tri sur une colonne du `$hidden` du modèle est refusé quand la
+pagination par curseur est autorisée.
 
 ## Sans pagination
 
@@ -147,6 +153,6 @@ La réponse est la liste des lignes, sans clés de pagination.
 
 Une `ConfigurationException` est levée à la lecture de la query :
 
-- mode inconnu dans `default()` ou `allow()` ;
 - mode par défaut non autorisé ;
+- tri sur une colonne du `$hidden` du modèle alors que `cursor` est autorisé ;
 - `limit()` hors de `1…maxLimit`.

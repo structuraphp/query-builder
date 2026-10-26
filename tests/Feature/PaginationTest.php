@@ -259,6 +259,22 @@ final class PaginationTest extends TestCase
         );
     }
 
+    public function testCursorWithANonScalarValueIs422(): void
+    {
+        $this->seedArticles(3);
+
+        $response = $this->fetch(PlainArticleQuery::class, [
+            'pagination' => 'cursor',
+            'cursor' => new Cursor(['articles.id' => [1, 2]])->encode(),
+        ]);
+
+        $response->assertUnprocessable();
+        self::assertSame(
+            'The selected cursor is invalid.',
+            self::errorMessage($response, 'cursor'),
+        );
+    }
+
     public function testArrayInputIgnoresThePageOfTheRequest(): void
     {
         $this->seedArticles(3);

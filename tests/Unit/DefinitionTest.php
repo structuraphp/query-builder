@@ -16,6 +16,7 @@ use StructuraPhp\QueryBuilder\Enum\Type;
 use StructuraPhp\QueryBuilder\Exception\ConfigurationException;
 use StructuraPhp\QueryBuilder\Service\Definition;
 use Tests\StructuraPhp\QueryBuilder\Fixtures\Queries\ConfigurableQuery;
+use Tests\StructuraPhp\QueryBuilder\Fixtures\SecretViewsArticle;
 use Tests\StructuraPhp\QueryBuilder\TestCase;
 
 final class DefinitionTest extends TestCase
@@ -306,5 +307,62 @@ final class DefinitionTest extends TestCase
         );
 
         Definition::fromQuery($query);
+    }
+
+    /**
+     * @param Closure(SortInterface): void $sort
+     */
+    #[DataProvider('hiddenSorts')]
+    public function testSortOnAHiddenColumnRefusesCursor(
+        Closure $sort,
+        string $message,
+    ): void {
+        $this->expectExceptionObject(new ConfigurationException($message));
+        $query = new ConfigurableQuery(
+            sort: $sort,
+            model: SecretViewsArticle::class,
+        );
+
+        Definition::fromQuery($query);
+    }
+
+    /**
+     * @return iterable<string, array{Closure(SortInterface): void, string}>
+     */
+    public static function hiddenSorts(): iterable
+    {
+        yield 'by name' => [
+            static function (SortInterface $s): void {
+                $s->sort('title');
+                $s->sort('views');
+            },
+            'Sort "views" orders on the hidden column "views": cursor'
+            . ' pagination would expose its values.',
+        ];
+
+        yield 'by column' => [
+            static function (SortInterface $s): void {
+                $s->sort('popularity')->column('views');
+            },
+            'Sort "popularity" orders on the hidden column "views": cursor'
+            . ' pagination would expose its values.',
+        ];
+    }
+
+    public function testSortOnAHiddenColumnWithoutCursor(): void
+    {
+        $query = new ConfigurableQuery(
+            pagination: static function (PaginationInterface $p): void {
+                $p->allow(PaginationMode::Offset);
+            },
+            sort: static function (SortInterface $s): void {
+                $s->sort('views');
+            },
+            model: SecretViewsArticle::class,
+        );
+
+        $definition = Definition::fromQuery($query);
+
+        self::assertArrayHasKey('views', $definition->sorts);
     }
 }

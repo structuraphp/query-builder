@@ -119,9 +119,14 @@ The next page sends the cursor back:
 GET /articles?pagination=cursor&limit=2&cursor=eyJ…
 ```
 
-A cursor that does not decode, or does not match the query (tampered
-values), is a validation error on `cursor`: `The selected cursor is
-invalid.`
+A cursor that does not decode, does not match the sorts of the query, or
+holds a value that is not a scalar, is a validation error on `cursor`: `The
+selected cursor is invalid.`
+
+The cursor is readable and editable by the client: it holds the values of
+the sorted columns of the last row, and the client may change them to start
+from any value. It therefore never holds a hidden column: a sort on a column
+of the model's `$hidden` is refused when cursor pagination is allowed.
 
 ## No pagination
 
@@ -146,6 +151,6 @@ The response is the list of rows, without pagination keys.
 
 A `ConfigurationException` is thrown when the query is read:
 
-- unknown mode in `default()` or `allow()`;
 - default mode that is not allowed;
+- sort on a column of the model's `$hidden` while `cursor` is allowed;
 - `limit()` outside `1…maxLimit`.

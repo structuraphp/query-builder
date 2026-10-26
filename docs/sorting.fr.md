@@ -91,7 +91,9 @@ Une `ConfigurationException` est levée à la lecture de la query :
 
 - tri déclaré deux fois, ou qui n'est pas fait que de lettres, chiffres et
   `_` ;
-- tri par défaut non déclaré, ou direction autre que `asc`/`desc` ;
+- tri par défaut non déclaré ;
 - `column()` et `count()` sur le même tri, ou `count()` d'une relation qui
   n'est pas une méthode du modèle ;
-- tri par défaut sur un nombre avec `cursor` comme pagination par défaut.
+- tri par défaut sur un nombre avec `cursor` comme pagination par défaut ;
+- tri sur une colonne du `$hidden` du modèle alors que la pagination par
+  curseur est autorisée : le curseur exposerait ses valeurs.

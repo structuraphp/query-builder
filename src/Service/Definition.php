@@ -141,6 +141,7 @@ final class Definition
         }
 
         $definition->assertCursorSorts();
+        $definition->assertHiddenSorts();
 
         return $definition;
     }
@@ -241,6 +242,35 @@ final class Definition
                     'Default sort "%s" counts a relation: it cannot be used'
                     . ' with the default cursor pagination.',
                     $name,
+                ));
+            }
+        }
+    }
+
+    /**
+     * A cursor holds the values of the sorted columns, and the client reads
+     * it: a hidden column would leak.
+     */
+    private function assertHiddenSorts(): void
+    {
+        $cursor = \in_array(
+            PaginationMode::Cursor,
+            $this->pagination->allowed,
+            true,
+        );
+        if (!$cursor) {
+            return;
+        }
+
+        $hidden = $this->model->getHidden();
+        foreach ($this->sorts as $name => $config) {
+            $column = $config->column ?? $name;
+            if ($config->count === null && \in_array($column, $hidden, true)) {
+                throw new ConfigurationException(\sprintf(
+                    'Sort "%s" orders on the hidden column "%s": cursor'
+                    . ' pagination would expose its values.',
+                    $name,
+                    $column,
                 ));
             }
         }

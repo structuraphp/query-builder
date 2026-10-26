@@ -86,7 +86,9 @@ prohibited.`
 A `ConfigurationException` is thrown when the query is read:
 
 - sort declared twice, or not made of letters, digits and `_` only;
-- default sort that is not declared, or direction other than `asc`/`desc`;
+- default sort that is not declared;
 - `column()` and `count()` on the same sort, or `count()` of a relation that
   is not a method of the model;
-- default sort on a count with `cursor` as default pagination.
+- default sort on a count with `cursor` as default pagination;
+- sort on a column of the model's `$hidden` while `cursor` pagination is
+  allowed: the cursor would expose its values.

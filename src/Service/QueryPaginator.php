@@ -84,8 +84,9 @@ final class QueryPaginator
         }
 
         $cursor = \is_string($cursor) ? $cursor : null;
-        // Laravel reads an undecodable cursor as the first page.
-        if ($cursor !== null && Cursor::fromEncoded($cursor) === null) {
+        // Laravel reads an undecodable cursor as the first page, and binds
+        // the items of a list as if they were several values.
+        if ($cursor !== null && !$this->readable($cursor)) {
             throw $this->invalidCursor();
         }
 
@@ -100,6 +101,17 @@ final class QueryPaginator
             // (e.g. text against a PostgreSQL bigint).
             throw $cursor === null ? $e : $this->invalidCursor();
         }
+    }
+
+    private function readable(string $cursor): bool
+    {
+        $parameters = Cursor::fromEncoded($cursor)?->toArray();
+
+        return $parameters !== null && array_all(
+            $parameters,
+            static fn (mixed $value): bool => $value === null
+                || \is_scalar($value),
+        );
     }
 
     private function invalidCursor(): ValidationException
