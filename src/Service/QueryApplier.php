@@ -56,9 +56,14 @@ final readonly class QueryApplier
     {
         $names = array_map(trim(...), explode(',', $with));
 
-        return array_filter($names, static fn (
-            string $name,
-        ): bool => $name !== '');
+        // Laravel nests a closure per repeated relation: thousands of
+        // repeats overflow the stack.
+        return array_unique(
+            array_filter(
+                $names,
+                static fn (string $name): bool => $name !== '',
+            ),
+        );
     }
 
     /**

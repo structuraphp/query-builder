@@ -91,6 +91,21 @@ final class CountTest extends TestCase
         self::assertSame(1, substr_count($sql, 'as "comments_count"'));
     }
 
+    /**
+     * Laravel nests one closure per repeated relation: tens of thousands of
+     * repeats overflowed the stack and crashed the worker.
+     */
+    public function testRepeatedCountIsCountedOnce(): void
+    {
+        $parameters = QueryParameters::fromArray($this->articleQuery(), [
+            'count' => implode(',', array_fill(0, 50_000, 'comments')),
+        ]);
+
+        $sql = $parameters->builder()->getQuery()->toSql();
+
+        self::assertSame(1, substr_count($sql, 'as "comments_count"'));
+    }
+
     public function testSortBySeveralCounts(): void
     {
         DB::table('authors')->insert([
