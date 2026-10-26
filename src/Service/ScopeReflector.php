@@ -29,13 +29,19 @@ use StructuraPhp\QueryBuilder\ValueObject\ScopeArgument;
 final class ScopeReflector
 {
     /**
-     * @return list<ScopeArgument>
+     * Like Laravel, a method of the model's own builder wins over a model
+     * scope of the same name.
+     *
+     * @return array{list<ScopeArgument>, bool} the arguments, and whether
+     *                                          the scope is a builder method
      */
-    public function arguments(Model $model, ScopeConfig $config): array
+    public function reflect(Model $model, ScopeConfig $config): array
     {
-        $method = $this->method($model, $config);
+        $builderMethod = $this->builderMethod($model, $config);
+        $onBuilder = $builderMethod instanceof ReflectionMethod;
+        $method = $builderMethod ?? $this->scopeMethod($model, $config);
         // A model scope receives the query first, a builder method does not.
-        $offset = $this->onBuilder($model, $config) ? 0 : 1;
+        $offset = $onBuilder ? 0 : 1;
         $parameters = \array_slice($method->getParameters(), $offset);
         $names = array_map(
             static fn (
@@ -67,22 +73,13 @@ final class ScopeReflector
             }
         }
 
-        return array_map(
+        $arguments = array_map(
             fn (ReflectionParameter $parameter): ScopeArgument => $this
                 ->argument($config, $parameter),
             $parameters,
         );
-    }
 
-    /**
-     * Like Laravel, a method of the model's own builder wins over a model
-     * scope of the same name.
-     */
-    public function onBuilder(Model $model, ScopeConfig $config): bool
-    {
-        $method = $this->builderMethod($model, $config);
-
-        return $method instanceof ReflectionMethod;
+        return [$arguments, $onBuilder];
     }
 
     /**
@@ -108,15 +105,10 @@ final class ScopeReflector
             : null;
     }
 
-    private function method(
+    private function scopeMethod(
         Model $model,
         ScopeConfig $config,
     ): ReflectionMethod {
-        $builderMethod = $this->builderMethod($model, $config);
-        if ($builderMethod instanceof ReflectionMethod) {
-            return $builderMethod;
-        }
-
         $method = $config->method ?? $config->name;
         // Method names are case-insensitive: no ucfirst() needed.
         $prefixed = 'scope' . $method;

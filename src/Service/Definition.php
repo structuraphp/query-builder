@@ -92,10 +92,14 @@ final class Definition
             $reflector = new ScopeReflector();
             foreach ($scope->scopes as $config) {
                 $definition->assertName($config->name);
+                [$arguments, $onBuilder] = $reflector->reflect(
+                    $definition->model,
+                    $config,
+                );
                 $definition->scopes[$config->name] = [
                     $config,
-                    $reflector->arguments($definition->model, $config),
-                    $reflector->onBuilder($definition->model, $config),
+                    $arguments,
+                    $onBuilder,
                 ];
             }
         }

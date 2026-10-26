@@ -505,6 +505,6 @@ final class ScopeReflectorTest extends TestCase
         ScopeConfig $config,
         Model $model = new Article(),
     ): array {
-        return new ScopeReflector()->arguments($model, $config);
+        return new ScopeReflector()->reflect($model, $config)[0];
     }
 }
