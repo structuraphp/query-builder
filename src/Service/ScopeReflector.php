@@ -248,7 +248,7 @@ final class ScopeReflector
         Closure|string|Type $cast,
     ): array {
         if ($cast instanceof Type) {
-            return [$cast->rules(), $cast->cast(...)];
+            return $this->builtin($cast);
         }
 
         if ($cast instanceof Closure) {
@@ -308,7 +308,7 @@ final class ScopeReflector
         };
 
         if ($builtin !== null) {
-            return [$builtin->rules(), $builtin->cast(...)];
+            return $this->builtin($builtin);
         }
 
         if ($class === 'array') {
@@ -320,15 +320,15 @@ final class ScopeReflector
         }
 
         if ($class !== null && is_a(CarbonImmutable::class, $class, true)) {
-            return [Type::Date->rules(), Type::Date->cast(...)];
+            return $this->builtin(Type::Date);
         }
 
         if ($class !== null && is_a(Carbon::class, $class, true)) {
             return [
-                Type::Date->rules(),
+                TypeCaster::rules(Type::Date),
                 fn (mixed $value): ?Carbon => Carbon::createFromFormat(
                     '!Y-m-d',
-                    (string) Type::scalar($value),
+                    (string) TypeCaster::scalar($value),
                 ),
             ];
         }
@@ -342,6 +342,17 @@ final class ScopeReflector
     }
 
     /**
+     * @return Resolved
+     */
+    private function builtin(Type $type): array
+    {
+        return [
+            TypeCaster::rules($type),
+            fn (mixed $value): mixed => TypeCaster::cast($type, $value),
+        ];
+    }
+
+    /**
      * @param class-string<BackedEnum> $enum
      *
      * @return Resolved
@@ -350,7 +361,7 @@ final class ScopeReflector
     {
         $backing = (string) new ReflectionEnum($enum)->getBackingType();
         $cast = static function (mixed $value) use ($enum, $backing) {
-            $value = Type::scalar($value);
+            $value = TypeCaster::scalar($value);
 
             return $enum::from(
                 $backing === 'int' ? (int) $value : (string) $value,

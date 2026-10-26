@@ -13,7 +13,6 @@ use LogicException;
 use ReflectionFunction;
 use ReflectionMethod;
 use StructuraPhp\QueryBuilder\Enum\Mode;
-use StructuraPhp\QueryBuilder\Enum\Type;
 use StructuraPhp\QueryBuilder\ValueObject\ScopeArgument;
 
 final readonly class QueryApplier
@@ -118,23 +117,29 @@ final readonly class QueryApplier
 
             $column = $this->column($config->column ?? $name);
             $mode = Mode::from(
-                (string) Type::scalar($input['mode'] ?? Mode::Equal->value),
+                (string) TypeCaster::scalar(
+                    $input['mode'] ?? Mode::Equal->value,
+                ),
             );
             $value = match (true) {
                 $mode === Mode::IsNull => null,
                 $mode === Mode::In && \is_array($input['value']) => array_map(
-                    $type->cast(...),
+                    fn (mixed $item): mixed => TypeCaster::cast($type, $item),
                     $input['value'],
                 ),
-                default => $type->cast($input['value']),
+                default => TypeCaster::cast($type, $input['value']),
             };
 
             if (filter_var($input['not'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
-                $query->whereNot(
-                    fn (Builder $q) => $type->apply($q, $column, $mode, $value),
-                );
+                $query->whereNot(fn (Builder $q) => FilterApplier::apply(
+                    $q,
+                    $type,
+                    $column,
+                    $mode,
+                    $value,
+                ));
             } else {
-                $type->apply($query, $column, $mode, $value);
+                FilterApplier::apply($query, $type, $column, $mode, $value);
             }
         }
     }

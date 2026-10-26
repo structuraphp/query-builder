@@ -14,7 +14,7 @@
         "@default": true,
         // A validated page: Laravel casts it itself, the cast is for PHPStan.
         "CastInt": {
-            "ignoreSourceCodeByRegex": ["\\$page = \\(int\\) Type::scalar\\(.*"]
+            "ignoreSourceCodeByRegex": ["\\$page = \\(int\\) TypeCaster::scalar\\(.*"]
         },
         // Only read for context arguments, which always set it.
         "FalseValue": {

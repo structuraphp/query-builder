@@ -206,12 +206,12 @@ final readonly class ValidationCompiler
                 continue;
             }
 
-            $modes = $type->modes();
+            $modes = FilterApplier::modes($type);
             if ($config->nullable) {
                 $modes[] = Mode::IsNull;
             }
 
-            $single = array_merge($type->rules(), $config->rules);
+            $single = array_merge(TypeCaster::rules($type), $config->rules);
 
             $rules[$name] = ['array'];
             $rules["{$name}.value"] = $this->valueRules($name, $modes, $single);

@@ -4,15 +4,17 @@ declare(strict_types=1);
 
 namespace Tests\StructuraPhp\QueryBuilder\Unit;
 
-use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
+use LogicException;
 use PHPUnit\Framework\Attributes\DataProvider;
 use StructuraPhp\QueryBuilder\Enum\Mode;
 use StructuraPhp\QueryBuilder\Enum\Type;
+use StructuraPhp\QueryBuilder\Service\FilterApplier;
+use StructuraPhp\QueryBuilder\Service\TypeCaster;
 use Tests\StructuraPhp\QueryBuilder\Fixtures\Article;
 use Tests\StructuraPhp\QueryBuilder\TestCase;
 
-final class TypeTest extends TestCase
+final class FilterApplierTest extends TestCase
 {
     private const array COMPARISONS = [
         Mode::Equal,
@@ -23,85 +25,76 @@ final class TypeTest extends TestCase
     ];
 
     /**
-     * @param list<string> $rules
      * @param list<Mode> $modes
      */
     #[DataProvider('types')]
-    public function testRulesModesAndCast(
-        Type $type,
-        array $rules,
-        array $modes,
-        mixed $input,
-        mixed $expected,
-    ): void {
-        $actualRules = $type->rules();
-        $actualModes = $type->modes();
-        $cast = $type->cast($input);
+    public function testModes(Type $type, array $modes): void
+    {
+        $actual = FilterApplier::modes($type);
 
-        self::assertSame($rules, $actualRules);
-        self::assertSame($modes, $actualModes);
-        self::assertSame($expected, $cast);
+        self::assertSame($modes, $actual);
     }
 
     /**
-     * @return iterable<string, array{
-     *     Type,
-     *     list<string>,
-     *     list<Mode>,
-     *     mixed,
-     *     mixed,
-     * }>
+     * @return iterable<string, array{Type, list<Mode>}>
      */
     public static function types(): iterable
     {
-        yield 'string' => [
-            Type::String,
-            ['string'],
-            [Mode::Equal, Mode::Like, Mode::In],
-            12,
-            '12',
-        ];
+        yield 'string' => [Type::String, [Mode::Equal, Mode::Like, Mode::In]];
 
-        yield 'integer' => [
-            Type::Integer,
-            ['integer'],
-            [...self::COMPARISONS, Mode::In],
-            '12',
-            12,
-        ];
+        yield 'integer' => [Type::Integer, [...self::COMPARISONS, Mode::In]];
 
-        yield 'float' => [
-            Type::Float,
-            ['numeric'],
-            [...self::COMPARISONS, Mode::In],
-            '1.5',
-            1.5,
-        ];
+        yield 'float' => [Type::Float, [...self::COMPARISONS, Mode::In]];
 
-        yield 'boolean' => [
-            Type::Boolean,
-            ['boolean'],
-            [Mode::Equal],
-            '0',
-            false,
-        ];
+        yield 'boolean' => [Type::Boolean, [Mode::Equal]];
+
+        yield 'date' => [Type::Date, self::COMPARISONS];
     }
 
-    public function testDateRulesAndModes(): void
+    #[DataProvider('comparisons')]
+    public function testOperator(Mode $mode, string $operator): void
     {
-        $rules = Type::Date->rules();
-        $modes = Type::Date->modes();
+        $actual = FilterApplier::operator($mode);
 
-        self::assertSame(['date_format:Y-m-d'], $rules);
-        self::assertSame(self::COMPARISONS, $modes);
+        self::assertSame($operator, $actual);
     }
 
-    public function testDateCastIsMidnight(): void
+    /**
+     * @return iterable<string, array{Mode, string}>
+     */
+    public static function comparisons(): iterable
     {
-        $date = Type::Date->cast('2024-01-02');
+        yield 'eq' => [Mode::Equal, '='];
 
-        self::assertInstanceOf(CarbonImmutable::class, $date);
-        self::assertSame('2024-01-02 00:00:00', $date->toDateTimeString());
+        yield 'gt' => [Mode::GreaterThan, '>'];
+
+        yield 'lt' => [Mode::LessThan, '<'];
+
+        yield 'gte' => [Mode::GreaterOrEqual, '>='];
+
+        yield 'lte' => [Mode::LessOrEqual, '<='];
+    }
+
+    #[DataProvider('nonComparisons')]
+    public function testNonComparisonHasNoOperator(Mode $mode): void
+    {
+        $this->expectExceptionObject(new LogicException(
+            "Mode {$mode->value} is not a comparison.",
+        ));
+
+        FilterApplier::operator($mode);
+    }
+
+    /**
+     * @return iterable<string, array{Mode}>
+     */
+    public static function nonComparisons(): iterable
+    {
+        yield 'like' => [Mode::Like];
+
+        yield 'in' => [Mode::In];
+
+        yield 'null' => [Mode::IsNull];
     }
 
     /**
@@ -123,7 +116,7 @@ final class TypeTest extends TestCase
         );
         $query = Article::query();
 
-        Type::String->apply($query, 'title', Mode::Like, $value);
+        FilterApplier::apply($query, Type::String, 'title', Mode::Like, $value);
         $titles = $query->pluck('title')->all();
 
         self::assertSame($expected, $titles);
@@ -156,9 +149,9 @@ final class TypeTest extends TestCase
             ['title' => 'D', 'created_at' => '2024-01-03 00:00:00'],
         ]);
         $query = Article::query();
-        $date = Type::Date->cast('2024-01-02');
+        $date = TypeCaster::cast(Type::Date, '2024-01-02');
 
-        Type::Date->apply($query, 'created_at', $mode, $date);
+        FilterApplier::apply($query, Type::Date, 'created_at', $mode, $date);
         $titles = $query->pluck('title')->sort()->values()->all();
 
         self::assertSame($expected, $titles);
@@ -183,9 +176,15 @@ final class TypeTest extends TestCase
     public function testDateKeepsTheColumnIndexable(): void
     {
         $query = Article::query();
-        $date = Type::Date->cast('2024-01-02');
+        $date = TypeCaster::cast(Type::Date, '2024-01-02');
 
-        Type::Date->apply($query, 'created_at', Mode::Equal, $date);
+        FilterApplier::apply(
+            $query,
+            Type::Date,
+            'created_at',
+            Mode::Equal,
+            $date,
+        );
         $base = $query->getQuery();
 
         self::assertSame(
@@ -204,7 +203,13 @@ final class TypeTest extends TestCase
         ]);
         $query = Article::query();
 
-        Type::Integer->apply($query, 'views', Mode::GreaterThan, 100);
+        FilterApplier::apply(
+            $query,
+            Type::Integer,
+            'views',
+            Mode::GreaterThan,
+            100,
+        );
         $titles = $query->pluck('title')->all();
 
         self::assertSame(['B'], $titles);
@@ -218,7 +223,7 @@ final class TypeTest extends TestCase
         ]);
         $query = Article::query();
 
-        Type::Integer->apply($query, 'views', Mode::In, 200);
+        FilterApplier::apply($query, Type::Integer, 'views', Mode::In, 200);
         $titles = $query->pluck('title')->all();
 
         self::assertSame(['B'], $titles);
@@ -228,7 +233,13 @@ final class TypeTest extends TestCase
     {
         $query = Article::query();
 
-        Type::Date->apply($query, 'published_at', Mode::Equal, '2024-01-02');
+        FilterApplier::apply(
+            $query,
+            Type::Date,
+            'published_at',
+            Mode::Equal,
+            '2024-01-02',
+        );
         $base = $query->getQuery();
 
         self::assertSame(

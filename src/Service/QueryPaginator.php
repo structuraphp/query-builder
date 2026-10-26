@@ -13,7 +13,6 @@ use Illuminate\Database\QueryException;
 use Illuminate\Pagination\Cursor;
 use Illuminate\Validation\ValidationException;
 use LogicException;
-use StructuraPhp\QueryBuilder\Enum\Type;
 use UnexpectedValueException;
 
 final class QueryPaginator
@@ -34,8 +33,10 @@ final class QueryPaginator
         array $validated,
     ): Collection|CursorPaginator|LengthAwarePaginator {
         $pagination = $definition->pagination;
-        $limit = (int) Type::scalar($validated['limit'] ?? $pagination->limit);
-        $page = (int) Type::scalar($validated['page'] ?? 1);
+        $limit = (int) TypeCaster::scalar(
+            $validated['limit'] ?? $pagination->limit,
+        );
+        $page = (int) TypeCaster::scalar($validated['page'] ?? 1);
         $cursor = $validated['cursor'] ?? null;
 
         return match ($validated['pagination'] ?? $pagination->default) {
