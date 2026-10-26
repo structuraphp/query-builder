@@ -37,7 +37,7 @@ acceptés :
 |-----------|---------------------|--------------------------------------|
 | `String`  | `string`            | `eq`, `like`, `in`                   |
 | `Integer` | `integer`           | `eq`, `gt`, `lt`, `gte`, `lte`, `in` |
-| `Float`   | `numeric`           | `eq`, `gt`, `lt`, `gte`, `lte`, `in` |
+| `Float`   | `numeric`, finie    | `eq`, `gt`, `lt`, `gte`, `lte`, `in` |
 | `Boolean` | `boolean`           | `eq`                                 |
 | `Date`    | `date_format:Y-m-d` | `eq`, `gt`, `lt`, `gte`, `lte`       |
 
@@ -71,8 +71,8 @@ WHERE articles.rating < 4.5
 WHERE articles.title LIKE '%fo%' ESCAPE '!'
 ```
 
-`%`, `_` et `!` saisis par le client sont comparés littéralement, jamais
-comme des jokers :
+`%`, `_`, `[` et `!` saisis par le client sont comparés littéralement, jamais
+comme des jokers (`[` ouvre une classe de caractères sur SQL Server) :
 
 ```sql
 -- GET /articles?title[value]=50%&title[mode]=like

@@ -6,6 +6,7 @@ namespace StructuraPhp\QueryBuilder\Service;
 
 use Carbon\CarbonImmutable;
 use StructuraPhp\QueryBuilder\Enum\Type;
+use StructuraPhp\QueryBuilder\Rule\FiniteNumber;
 use UnexpectedValueException;
 
 /**
@@ -14,14 +15,14 @@ use UnexpectedValueException;
 final class TypeCaster
 {
     /**
-     * @return list<string>
+     * @return list<mixed>
      */
     public static function rules(Type $type): array
     {
         return match ($type) {
             Type::String => ['string'],
             Type::Integer => ['integer'],
-            Type::Float => ['numeric'],
+            Type::Float => ['numeric', new FiniteNumber()],
             Type::Boolean => ['boolean'],
             Type::Date => ['date_format:Y-m-d'],
         };

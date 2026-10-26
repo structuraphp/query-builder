@@ -268,6 +268,57 @@ final class FilterTest extends TestCase
         ]);
     }
 
+    public function testInfiniteFloatIsInvalid(): void
+    {
+        $response = $this->fetch(FilterArticleQuery::class, [
+            'rating' => ['value' => '1e999', 'mode' => 'gt'],
+        ]);
+
+        $response->assertUnprocessable();
+        self::assertSame(
+            'The rating field must be a number.',
+            self::errorMessage($response, 'rating.value'),
+        );
+    }
+
+    /**
+     * The check of a finite float is a rule of its own: a `between` of the
+     * application keeps its own message.
+     */
+    public function testOwnBetweenOnAFloatKeepsItsMessage(): void
+    {
+        $query = new ConfigurableQuery(
+            filter: static function (FilterInterface $filter): void {
+                $filter->filter('rating')
+                    ->type(Type::Float)
+                    ->rules(['between:0,5']);
+            },
+        );
+
+        try {
+            QueryParameters::fromArray($query, ['rating' => ['value' => '7']]);
+            self::fail('A rating above 5 was accepted.');
+        } catch (ValidationException $validationException) {
+            self::assertSame(
+                ['The rating field must be between 0 and 5.'],
+                $validationException->errors()['rating.value'] ?? null,
+            );
+        }
+    }
+
+    public function testInfiniteFloatInAListIsInvalid(): void
+    {
+        $response = $this->fetch(FilterArticleQuery::class, [
+            'rating' => ['value' => ['1.5', '1e999'], 'mode' => 'in'],
+        ]);
+
+        $response->assertUnprocessable();
+        self::assertSame(
+            'The rating field must be a number.',
+            self::errorMessage($response, 'rating.value.1'),
+        );
+    }
+
     public function testDateHasNoInMode(): void
     {
         $response = $this->fetch(FilterArticleQuery::class, [

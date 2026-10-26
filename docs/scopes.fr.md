@@ -118,7 +118,7 @@ La validation et la conversion viennent du type PHP du paramètre :
 | Type PHP                                | Règle               | Le scope reçoit               |
 |-----------------------------------------|---------------------|-------------------------------|
 | `int`                                   | `integer`           | `int`                         |
-| `float`                                 | `numeric`           | `float`                       |
+| `float`                                 | `numeric`, finie    | `float`                       |
 | `bool`                                  | `boolean`           | `bool`                        |
 | `string`                                | `string`            | `string`                      |
 | `array`                                 | `array`             | `array` (voir plus bas)       |

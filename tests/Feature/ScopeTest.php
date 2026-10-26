@@ -197,6 +197,19 @@ final class ScopeTest extends TestCase
             ->assertJsonValidationErrors('near.lat');
     }
 
+    public function testInfiniteFloatArgumentIsInvalid(): void
+    {
+        $response = $this->fetch(ScopeArticleQuery::class, [
+            'near' => ['lat' => '1e999', 'lng' => '100'],
+        ]);
+
+        $response->assertUnprocessable();
+        self::assertSame(
+            'The near.lat field must be a number.',
+            self::errorMessage($response, 'near.lat'),
+        );
+    }
+
     public function testBadDateIs422(): void
     {
         $response = $this->fetch(ScopeArticleQuery::class, [

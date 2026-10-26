@@ -173,6 +173,18 @@ final class FilterApplierTest extends TestCase
         yield '<=' => [Mode::LessOrEqual, ['A', 'B', 'C']];
     }
 
+    /**
+     * SQL Server reads `[` as the start of a character class.
+     */
+    public function testLikeEscapesBrackets(): void
+    {
+        $query = Article::query();
+
+        FilterApplier::apply($query, Type::String, 'title', Mode::Like, 'a[b');
+
+        self::assertSame(['%a![b%'], $query->getQuery()->getBindings());
+    }
+
     public function testDateKeepsTheColumnIndexable(): void
     {
         $query = Article::query();

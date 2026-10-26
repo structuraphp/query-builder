@@ -107,7 +107,7 @@ The validation and the conversion come from the PHP type of the parameter:
 | PHP type                                | Rule                | The scope receives         |
 |-----------------------------------------|---------------------|----------------------------|
 | `int`                                   | `integer`           | `int`                      |
-| `float`                                 | `numeric`           | `float`                    |
+| `float`                                 | `numeric`, finite   | `float`                    |
 | `bool`                                  | `boolean`           | `bool`                     |
 | `string`                                | `string`            | `string`                   |
 | `array`                                 | `array`             | `array` (see below)        |

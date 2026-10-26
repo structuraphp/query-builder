@@ -9,13 +9,14 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use stdClass;
 use StructuraPhp\QueryBuilder\Enum\Type;
+use StructuraPhp\QueryBuilder\Rule\FiniteNumber;
 use StructuraPhp\QueryBuilder\Service\TypeCaster;
 use UnexpectedValueException;
 
 final class TypeCasterTest extends TestCase
 {
     /**
-     * @param list<string> $rules
+     * @param list<mixed> $rules
      */
     #[DataProvider('types')]
     public function testRulesAndCast(
@@ -27,12 +28,12 @@ final class TypeCasterTest extends TestCase
         $actualRules = TypeCaster::rules($type);
         $cast = TypeCaster::cast($type, $input);
 
-        self::assertSame($rules, $actualRules);
+        self::assertEquals($rules, $actualRules);
         self::assertSame($expected, $cast);
     }
 
     /**
-     * @return iterable<string, array{Type, list<string>, mixed, mixed}>
+     * @return iterable<string, array{Type, list<mixed>, mixed, mixed}>
      */
     public static function types(): iterable
     {
@@ -40,7 +41,12 @@ final class TypeCasterTest extends TestCase
 
         yield 'integer' => [Type::Integer, ['integer'], '12', 12];
 
-        yield 'float' => [Type::Float, ['numeric'], '1.5', 1.5];
+        yield 'float' => [
+            Type::Float,
+            ['numeric', new FiniteNumber()],
+            '1.5',
+            1.5,
+        ];
 
         yield 'boolean' => [Type::Boolean, ['boolean'], '0', false];
     }

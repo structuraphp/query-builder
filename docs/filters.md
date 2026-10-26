@@ -37,7 +37,7 @@ modes:
 |-----------|---------------------|--------------------------------------|
 | `String`  | `string`            | `eq`, `like`, `in`                   |
 | `Integer` | `integer`           | `eq`, `gt`, `lt`, `gte`, `lte`, `in` |
-| `Float`   | `numeric`           | `eq`, `gt`, `lt`, `gte`, `lte`, `in` |
+| `Float`   | `numeric`, finite   | `eq`, `gt`, `lt`, `gte`, `lte`, `in` |
 | `Boolean` | `boolean`           | `eq`                                 |
 | `Date`    | `date_format:Y-m-d` | `eq`, `gt`, `lt`, `gte`, `lte`       |
 
@@ -70,8 +70,8 @@ WHERE articles.rating < 4.5
 WHERE articles.title LIKE '%fo%' ESCAPE '!'
 ```
 
-`%`, `_` and `!` typed by the client are matched literally, never as
-wildcards:
+`%`, `_`, `[` and `!` typed by the client are matched literally, never as
+wildcards (`[` opens a character class on SQL Server):
 
 ```sql
 -- GET /articles?title[value]=50%&title[mode]=like

@@ -130,7 +130,13 @@ final class FilterApplier
         $base = $query->getQuery();
         $driver = $query->getModel()->getConnection()->getDriverName();
         $operator = $driver === 'pgsql' ? 'ilike' : 'like';
-        $escaped = strtr($value, ['!' => '!!', '%' => '!%', '_' => '!_']);
+        // SQL Server also reads `[` as the start of a character class.
+        $escaped = strtr($value, [
+            '!' => '!!',
+            '%' => '!%',
+            '_' => '!_',
+            '[' => '![',
+        ]);
 
         // The column comes from the query declaration, never from the
         // request, and is wrapped by the grammar.

@@ -15,6 +15,7 @@ use RuntimeException;
 use stdClass;
 use StructuraPhp\QueryBuilder\Enum\Type;
 use StructuraPhp\QueryBuilder\Exception\ConfigurationException;
+use StructuraPhp\QueryBuilder\Rule\FiniteNumber;
 use StructuraPhp\QueryBuilder\Service\ScopeReflector;
 use StructuraPhp\QueryBuilder\ValueObject\Config\ScopeConfig;
 use StructuraPhp\QueryBuilder\ValueObject\ScopeArgument;
@@ -135,7 +136,7 @@ final class ScopeReflectorTest extends TestCase
         [$lat] = $this->arguments($config);
         $cast = ($lat->cast)('1.5');
 
-        self::assertSame(['numeric'], $lat->rules);
+        self::assertEquals(['numeric', new FiniteNumber()], $lat->rules);
         self::assertSame(1.5, $cast);
     }
 
@@ -211,7 +212,10 @@ final class ScopeReflectorTest extends TestCase
             new ScopeTypedArticle(),
         );
 
-        self::assertSame(['numeric'], $rating->rules);
+        self::assertEquals(
+            ['numeric', new FiniteNumber()],
+            $rating->rules,
+        );
         self::assertSame(1.5, ($rating->cast)('1.5'));
     }
 
@@ -302,7 +306,7 @@ final class ScopeReflectorTest extends TestCase
 
         [$lat, $lng] = $this->arguments($config);
 
-        self::assertSame(['numeric'], $lat->rules);
+        self::assertEquals(['numeric', new FiniteNumber()], $lat->rules);
         self::assertSame(['integer'], $lng->rules);
     }
 
