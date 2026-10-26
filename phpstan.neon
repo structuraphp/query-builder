@@ -1,4 +1,5 @@
 includes:
+    - extension.neon
     - vendor/phpstan/phpstan-strict-rules/rules.neon
     - vendor/phpstan/phpstan-phpunit/extension.neon
 
@@ -10,3 +11,7 @@ parameters:
         - tests
     excludePaths:
         - tests/PHPStan/data
+    ignoreErrors:
+        -
+            identifier: structuraQueryBuilder.flatConfiguration
+            path: tests/Fixtures/Queries/ConfigurableQuery.php

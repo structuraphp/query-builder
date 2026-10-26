@@ -1,0 +1,2 @@
+rules:
+    - StructuraPhp\QueryBuilder\PHPStan\FlatConfigurationRule

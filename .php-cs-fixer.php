@@ -15,6 +15,7 @@ $finder = Finder::create()
         __DIR__ . '/src',
         __DIR__ . '/tests',
     ])
+    ->exclude('PHPStan/data')
     ->append([
         __DIR__ . '/rector.php',
         __FILE__,
