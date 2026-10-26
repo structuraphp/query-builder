@@ -126,11 +126,28 @@ final class DefinitionTest extends TestCase
             $f->filter('a*')->type(Type::String);
         }];
 
+        yield 'empty string' => [static function (FilterInterface $f): void {
+            $f->filter('title')->type(Type::String)->maxLength(0);
+        }];
+
         yield 'no item in in mode' => [static function (
             FilterInterface $f,
         ): void {
             $f->filter('views')->type(Type::Integer)->maxItems(0);
         }];
+    }
+
+    public function testOneCharacterIsEnough(): void
+    {
+        $query = new ConfigurableQuery(
+            filter: static function (FilterInterface $f): void {
+                $f->filter('title')->type(Type::String)->maxLength(1);
+            },
+        );
+
+        $definition = Definition::fromQuery($query);
+
+        self::assertSame(1, $definition->filters['title']->maxLength);
     }
 
     public function testOneItemInInModeIsEnough(): void

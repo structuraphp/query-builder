@@ -13,6 +13,7 @@ use Illuminate\Validation\Validator;
 use StructuraPhp\QueryBuilder\Enum\Direction;
 use StructuraPhp\QueryBuilder\Enum\Mode;
 use StructuraPhp\QueryBuilder\Enum\PaginationMode;
+use StructuraPhp\QueryBuilder\Enum\Type;
 use StructuraPhp\QueryBuilder\ValueObject\ScopeArgument;
 use Throwable;
 
@@ -239,7 +240,15 @@ final readonly class ValidationCompiler
                 $modes[] = Mode::IsNull;
             }
 
-            $single = array_merge(TypeCaster::rules($type), $config->rules);
+            // A long `like` pattern can be refused by the engine (SQLite).
+            $length = $type === Type::String
+                ? ["max:{$config->maxLength}"]
+                : [];
+            $single = [
+                ...TypeCaster::rules($type),
+                ...$length,
+                ...$config->rules,
+            ];
 
             $rules[$name] = ['array'];
             $rules["{$name}.value"] = $this->valueRules(

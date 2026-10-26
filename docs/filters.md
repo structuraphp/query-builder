@@ -35,7 +35,7 @@ modes:
 
 | `Type`    | Validation          | Modes                                |
 |-----------|---------------------|--------------------------------------|
-| `String`  | `string`            | `eq`, `like`, `in`                   |
+| `String`  | `string`, `max:256` | `eq`, `like`, `in`                   |
 | `Integer` | `integer`           | `eq`, `gt`, `lt`, `gte`, `lte`, `in` |
 | `Float`   | `numeric`, finite   | `eq`, `gt`, `lt`, `gte`, `lte`, `in` |
 | `Boolean` | `boolean`           | `eq`                                 |
@@ -80,6 +80,13 @@ WHERE articles.title LIKE '%50!%%' ESCAPE '!'
 
 The search ignores case: `ILIKE` on PostgreSQL; on MySQL, it depends on the
 column collation.
+
+A string value holds at most 256 characters, as some engines refuse a long
+`like` pattern (SQLite); `maxLength()` changes the limit:
+
+```php
+$filter->filter('title')->type(Type::String)->maxLength(1000);
+```
 
 ### `in`
 
@@ -242,7 +249,7 @@ GET /articles?statut[value]=archived
 A `ConfigurationException` is thrown when the query is read:
 
 - filter without `type()`;
-- `maxItems()` below 1;
+- `maxItems()` or `maxLength()` below 1;
 - name reserved (`with`, `count`, `sort`, `pagination`, `page`, `cursor`, `limit`),
   declared twice (also against a scope), or not made of letters, digits and
   `_` only.

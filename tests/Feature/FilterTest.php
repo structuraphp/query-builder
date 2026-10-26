@@ -319,6 +319,54 @@ final class FilterTest extends TestCase
         );
     }
 
+    public function testStringTakesAtMost256Characters(): void
+    {
+        $max = $this->fetch(FilterArticleQuery::class, [
+            'title' => ['value' => str_repeat('a', 256), 'mode' => 'like'],
+        ]);
+        $more = $this->fetch(FilterArticleQuery::class, [
+            'title' => ['value' => str_repeat('a', 257), 'mode' => 'like'],
+        ]);
+
+        $max->assertOk();
+        $more->assertUnprocessable();
+        self::assertSame(
+            'The title field must not be greater than 256 characters.',
+            self::errorMessage($more, 'title.value'),
+        );
+    }
+
+    public function testStringLimitAppliesToEachValueOfAList(): void
+    {
+        $response = $this->fetch(FilterArticleQuery::class, [
+            'title' => [
+                'value' => ['Foo', str_repeat('a', 257)],
+                'mode' => 'in',
+            ],
+        ]);
+
+        $response
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('title.value.1');
+    }
+
+    public function testMaxLengthSetsTheLimitOfAString(): void
+    {
+        $query = new ConfigurableQuery(
+            filter: static function (FilterInterface $filter): void {
+                $filter->filter('title')->type(Type::String)->maxLength(3);
+            },
+        );
+
+        $three = QueryParameters::fromArray($query, [
+            'title' => ['value' => 'Foo'],
+        ]);
+
+        self::assertSame(['Foo'], $three->builder()->pluck('title')->all());
+        $this->expectException(ValidationException::class);
+        QueryParameters::fromArray($query, ['title' => ['value' => 'Food']]);
+    }
+
     public function testDateHasNoInMode(): void
     {
         $response = $this->fetch(FilterArticleQuery::class, [

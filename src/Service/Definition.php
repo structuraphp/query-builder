@@ -304,6 +304,13 @@ final class Definition
             ));
         }
 
+        if ($config->maxLength < 1) {
+            throw new ConfigurationException(\sprintf(
+                'Filter "%s" must accept at least one character.',
+                $config->name,
+            ));
+        }
+
         $this->filters[$config->name] = $config;
     }
 

@@ -33,4 +33,10 @@ interface FilterConfigInterface
      * Most values the client may send in `in` mode (256 by default).
      */
     public function maxItems(int $max): static;
+
+    /**
+     * Longest value the client may send to a string filter (256 characters
+     * by default).
+     */
+    public function maxLength(int $max): static;
 }
