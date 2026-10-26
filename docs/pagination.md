@@ -11,23 +11,25 @@ client, among the allowed ones.
 public function paginate(PaginationInterface $pagination): void
 {
     $pagination
-        ->default('cursor')                 // default mode
+        ->default(PaginationMode::Cursor)   // default mode
         ->limit(25)                         // default items per page
         ->maxLimit(100)                     // highest limit accepted
-        ->allow('offset', 'cursor', 'none'); // allowed modes
+        ->allow(                            // allowed modes
+            PaginationMode::Offset,
+            PaginationMode::Cursor,
+            PaginationMode::None,
+        );
 }
 ```
 
 Without `WithPaginate`, or without a call:
 
-| Option       | Default            |
-|--------------|--------------------|
-| `default()`  | `offset`           |
-| `limit()`    | `50`               |
-| `maxLimit()` | `100`              |
-| `allow()`    | `offset`, `cursor` |
-
-`none` must be allowed explicitly: it returns every row.
+| Option       | Default                                            |
+|--------------|----------------------------------------------------|
+| `default()`  | `PaginationMode::Offset`                           |
+| `limit()`    | `50`                                               |
+| `maxLimit()` | `100`                                              |
+| `allow()`    | `PaginationMode::Offset`, `PaginationMode::Cursor` |
 
 ## Parameters
 
@@ -45,19 +47,35 @@ The examples use `->limit(2)->maxLimit(50)` and a default sort on
 
 ```sql
 -- GET /articles?limit=1&page=2
-SELECT count(*) AS aggregate FROM articles
-SELECT * FROM articles ORDER BY articles.created_at DESC LIMIT 1 OFFSET 1
+SELECT count(*) AS aggregate
+FROM articles
+SELECT *
+FROM articles
+ORDER BY articles.created_at DESC
+LIMIT 1 OFFSET 1
 ```
 
 The response is a `LengthAwarePaginator`:
 
 ```json
 {
-  "current_page": 2,
-  "data": [ … ],
-  "first_page_url": "…", "from": 2, "last_page": 3, "last_page_url": "…",
-  "links": [ … ], "next_page_url": "…", "path": "…", "per_page": 1,
-  "prev_page_url": "…", "to": 2, "total": 3
+    "current_page": 2,
+    "data": [
+        …
+    ],
+    "first_page_url": "…",
+    "from": 2,
+    "last_page": 3,
+    "last_page_url": "…",
+    "links": [
+        …
+    ],
+    "next_page_url": "…",
+    "path": "…",
+    "per_page": 1,
+    "prev_page_url": "…",
+    "to": 2,
+    "total": 3
 }
 ```
 
@@ -68,7 +86,10 @@ from page to page.
 
 ```sql
 -- GET /articles?pagination=cursor&limit=2
-SELECT * FROM articles ORDER BY articles.created_at DESC, articles.id ASC LIMIT 3
+SELECT *
+FROM articles
+ORDER BY articles.created_at DESC, articles.id ASC
+LIMIT 3
 ```
 
 The primary key is added as the last sort criterion, so that two rows with
@@ -80,10 +101,15 @@ The response is a `CursorPaginator`:
 
 ```json
 {
-  "data": [ … ],
-  "path": "…", "per_page": 2,
-  "next_cursor": "eyJ…", "next_page_url": "…",
-  "prev_cursor": null, "prev_page_url": null
+    "data": [
+        …
+    ],
+    "path": "…",
+    "per_page": 2,
+    "next_cursor": "eyJ…",
+    "next_page_url": "…",
+    "prev_cursor": null,
+    "prev_page_url": null
 }
 ```
 
@@ -101,7 +127,9 @@ invalid.`
 
 ```sql
 -- GET /articles?pagination=none
-SELECT * FROM articles ORDER BY articles.created_at DESC
+SELECT *
+FROM articles
+ORDER BY articles.created_at DESC
 ```
 
 The response is the list of rows, without pagination keys.

@@ -9,7 +9,7 @@ public function sort(SortInterface $sort): void
 {
     $sort->sort('date')->column('created_at');  // public name, actual column
     $sort->sort('title');                       // column: the name
-    $sort->default('date', 'desc');             // when the client sends none
+    $sort->default('date', Direction::Desc);    // when the client sends none
 }
 ```
 
@@ -34,7 +34,7 @@ ORDER BY articles.created_at ASC, articles.title DESC
 Without `sort`, the defaults apply, in declaration order:
 
 ```php
-$sort->default('date', 'desc')->default('title', 'asc');
+$sort->default('date', Direction::Desc)->default('title'); // Asc by default
 ```
 
 ```sql

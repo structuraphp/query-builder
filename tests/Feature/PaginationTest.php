@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\DB;
 use LogicException;
 use RuntimeException;
 use StructuraPhp\QueryBuilder\Contract\Config\SortInterface;
+use StructuraPhp\QueryBuilder\Enum\PaginationMode;
 use StructuraPhp\QueryBuilder\Service\Definition;
 use StructuraPhp\QueryBuilder\ValueObject\Config\Pagination;
 use StructuraPhp\QueryBuilder\ValueObject\QueryParameters;
@@ -286,9 +287,15 @@ final class PaginationTest extends TestCase
 
     public function testModesAllowedByNameStayAList(): void
     {
-        $pagination = new Pagination()->allow(first: 'offset', then: 'none');
+        $pagination = new Pagination()->allow(
+            first: PaginationMode::Offset,
+            then: PaginationMode::None,
+        );
 
-        self::assertSame(['offset', 'none'], $pagination->allowed);
+        self::assertSame(
+            [PaginationMode::Offset, PaginationMode::None],
+            $pagination->allowed,
+        );
     }
 
     private function sortable(): ConfigurableQuery

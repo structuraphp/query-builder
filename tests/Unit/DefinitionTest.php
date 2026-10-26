@@ -11,6 +11,7 @@ use StructuraPhp\QueryBuilder\Contract\Config\PaginationInterface;
 use StructuraPhp\QueryBuilder\Contract\Config\RelationInterface;
 use StructuraPhp\QueryBuilder\Contract\Config\ScopeInterface;
 use StructuraPhp\QueryBuilder\Contract\Config\SortInterface;
+use StructuraPhp\QueryBuilder\Enum\PaginationMode;
 use StructuraPhp\QueryBuilder\Enum\Type;
 use StructuraPhp\QueryBuilder\Exception\ConfigurationException;
 use StructuraPhp\QueryBuilder\Service\Definition;
@@ -41,16 +42,8 @@ final class DefinitionTest extends TestCase
      */
     public static function invalidPagination(): iterable
     {
-        yield 'unknown default' => [function (PaginationInterface $p): void {
-            $p->default('page');
-        }, 'Unknown pagination mode "page".'];
-
-        yield 'unknown allowed' => [function (PaginationInterface $p): void {
-            $p->allow('offset', 'page');
-        }, 'Unknown pagination mode "page".'];
-
         yield 'refused default' => [function (PaginationInterface $p): void {
-            $p->allow('offset')->default('cursor');
+            $p->allow(PaginationMode::Offset)->default(PaginationMode::Cursor);
         }, 'Default pagination mode "cursor" is not allowed.'];
 
         yield 'limit below 1' => [function (PaginationInterface $p): void {
@@ -144,11 +137,6 @@ final class DefinitionTest extends TestCase
     {
         yield 'undeclared default' => [function (SortInterface $s): void {
             $s->default('title');
-        }];
-
-        yield 'bad direction' => [function (SortInterface $s): void {
-            $s->sort('title');
-            $s->default('title', 'up');
         }];
 
         yield 'duplicate' => [function (SortInterface $s): void {
@@ -260,7 +248,7 @@ final class DefinitionTest extends TestCase
         ));
         $query = new ConfigurableQuery(
             pagination: function (PaginationInterface $p): void {
-                $p->default('cursor');
+                $p->default(PaginationMode::Cursor);
             },
             sort: function (SortInterface $s): void {
                 $s->sort('popularity')->count('comments');

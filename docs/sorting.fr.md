@@ -9,7 +9,7 @@ public function sort(SortInterface $sort): void
 {
     $sort->sort('date')->column('created_at');  // nom public, colonne réelle
     $sort->sort('title');                       // colonne : le nom
-    $sort->default('date', 'desc');             // quand le client n'en envoie pas
+    $sort->default('date', Direction::Desc);    // quand le client n'en envoie pas
 }
 ```
 
@@ -35,7 +35,7 @@ DESC
 Sans `sort`, les tris par défaut s'appliquent, dans l'ordre de déclaration :
 
 ```php
-$sort->default('date', 'desc')->default('title', 'asc');
+$sort->default('date', Direction::Desc)->default('title'); // Asc par défaut
 ```
 
 ```sql

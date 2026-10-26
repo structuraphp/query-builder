@@ -11,23 +11,25 @@ client, parmi ceux autorisés.
 public function paginate(PaginationInterface $pagination): void
 {
     $pagination
-        ->default('cursor')                 // mode par défaut
+        ->default(PaginationMode::Cursor)   // mode par défaut
         ->limit(25)                         // éléments par page par défaut
         ->maxLimit(100)                     // limite la plus haute acceptée
-        ->allow('offset', 'cursor', 'none'); // modes autorisés
+        ->allow(                            // modes autorisés
+            PaginationMode::Offset,
+            PaginationMode::Cursor,
+            PaginationMode::None,
+        );
 }
 ```
 
 Sans `WithPaginate`, ou sans appel :
 
-| Option       | Défaut             |
-|--------------|--------------------|
-| `default()`  | `offset`           |
-| `limit()`    | `50`               |
-| `maxLimit()` | `100`              |
-| `allow()`    | `offset`, `cursor` |
-
-`none` doit être autorisé explicitement : il renvoie toutes les lignes.
+| Option       | Défaut                                             |
+|--------------|----------------------------------------------------|
+| `default()`  | `PaginationMode::Offset`                           |
+| `limit()`    | `50`                                               |
+| `maxLimit()` | `100`                                              |
+| `allow()`    | `PaginationMode::Offset`, `PaginationMode::Cursor` |
 
 ## Paramètres
 
@@ -118,8 +120,8 @@ La page suivante renvoie le curseur :
 GET /articles?pagination=cursor&limit=2&cursor=eyJ…
 ```
 
-Un curseur qui ne se décode pas, ou qui ne correspond pas à la requête
-(valeurs trafiquées), est une erreur de validation sur `cursor` : `The
+Un curseur qui ne se décode pas, ou qui ne correspond pas à la requête (valeurs trafiquées), est une erreur de
+validation sur `cursor` : `The
 selected cursor is invalid.`
 
 ## Sans pagination

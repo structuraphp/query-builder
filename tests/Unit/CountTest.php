@@ -12,6 +12,8 @@ use StructuraPhp\QueryBuilder\Contract\Config\FilterInterface;
 use StructuraPhp\QueryBuilder\Contract\Config\PaginationInterface;
 use StructuraPhp\QueryBuilder\Contract\Config\RelationInterface;
 use StructuraPhp\QueryBuilder\Contract\Config\SortInterface;
+use StructuraPhp\QueryBuilder\Enum\Direction;
+use StructuraPhp\QueryBuilder\Enum\PaginationMode;
 use StructuraPhp\QueryBuilder\Enum\Type;
 use StructuraPhp\QueryBuilder\Exception\ConfigurationException;
 use StructuraPhp\QueryBuilder\ValueObject\QueryParameters;
@@ -198,7 +200,7 @@ final class CountTest extends TestCase
         yield 'cursor by default with a default count sort' => [
             fn (): ConfigurableQuery => new ConfigurableQuery(
                 pagination: function (PaginationInterface $p): void {
-                    $p->default('cursor');
+                    $p->default(PaginationMode::Cursor);
                 },
                 sort: self::defaultCountSort(...),
             ),
@@ -220,7 +222,7 @@ final class CountTest extends TestCase
     private static function defaultCountSort(SortInterface $sort): void
     {
         $sort->sort('comments')->count('comments');
-        $sort->default('comments', 'desc');
+        $sort->default('comments', Direction::Desc);
     }
 
     /**

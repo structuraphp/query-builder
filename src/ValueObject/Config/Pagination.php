@@ -5,21 +5,23 @@ declare(strict_types=1);
 namespace StructuraPhp\QueryBuilder\ValueObject\Config;
 
 use StructuraPhp\QueryBuilder\Contract\Config\PaginationInterface;
+use StructuraPhp\QueryBuilder\Enum\PaginationMode;
 
 final class Pagination implements PaginationInterface
 {
-    public const array MODES = ['offset', 'cursor', 'none'];
-
-    public private(set) string $default = 'offset';
+    public private(set) PaginationMode $default = PaginationMode::Offset;
 
     public private(set) int $limit = 50;
 
     public private(set) int $maxLimit = 100;
 
-    /** @var list<string> */
-    public private(set) array $allowed = ['offset', 'cursor'];
+    /** @var list<PaginationMode> */
+    public private(set) array $allowed = [
+        PaginationMode::Offset,
+        PaginationMode::Cursor,
+    ];
 
-    public function default(string $mode): static
+    public function default(PaginationMode $mode): static
     {
         $this->default = $mode;
 
@@ -40,7 +42,7 @@ final class Pagination implements PaginationInterface
         return $this;
     }
 
-    public function allow(string ...$modes): static
+    public function allow(PaginationMode ...$modes): static
     {
         $this->allowed = array_values($modes);
 

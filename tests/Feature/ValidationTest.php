@@ -16,6 +16,7 @@ use StructuraPhp\QueryBuilder\Contract\Config\RelationInterface;
 use StructuraPhp\QueryBuilder\Contract\Config\ScopeInterface;
 use StructuraPhp\QueryBuilder\Contract\Config\SortInterface;
 use StructuraPhp\QueryBuilder\Contract\Query\FromModel;
+use StructuraPhp\QueryBuilder\Enum\PaginationMode;
 use StructuraPhp\QueryBuilder\Enum\Type;
 use StructuraPhp\QueryBuilder\ValueObject\QueryParameters;
 use Symfony\Component\HttpFoundation\Response;
@@ -283,7 +284,7 @@ final class ValidationTest extends TestCase
     {
         $query = $this->countQuery(
             function (PaginationInterface $pagination): void {
-                $pagination->allow('offset');
+                $pagination->allow(PaginationMode::Offset);
             },
         );
 

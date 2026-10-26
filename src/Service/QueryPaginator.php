@@ -13,6 +13,7 @@ use Illuminate\Database\QueryException;
 use Illuminate\Pagination\Cursor;
 use Illuminate\Validation\ValidationException;
 use LogicException;
+use StructuraPhp\QueryBuilder\Enum\PaginationMode;
 use UnexpectedValueException;
 
 final class QueryPaginator
@@ -39,13 +40,22 @@ final class QueryPaginator
         $page = (int) TypeCaster::scalar($validated['page'] ?? 1);
         $cursor = $validated['cursor'] ?? null;
 
-        return match ($validated['pagination'] ?? $pagination->default) {
-            'none' => $query->get(),
-            'cursor' => $this->cursor($definition, $query, $limit, $cursor),
-            'offset' => $query
+        $mode = PaginationMode::tryFrom((string) TypeCaster::scalar(
+            $validated['pagination'] ?? $pagination->default->value,
+        ));
+
+        return match ($mode) {
+            PaginationMode::None => $query->get(),
+            PaginationMode::Cursor => $this->cursor(
+                $definition,
+                $query,
+                $limit,
+                $cursor,
+            ),
+            PaginationMode::Offset => $query
                 ->paginate($limit, ['*'], 'page', $page)
                 ->withQueryString(),
-            default => throw new LogicException('Unvalidated pagination mode.'),
+            null => throw new LogicException('Unvalidated pagination mode.'),
         };
     }
 

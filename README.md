@@ -76,7 +76,7 @@ final class ArticleQuery implements
     public function sort(SortInterface $sort): void
     {
         $sort->sort('date')->column('created_at');
-        $sort->default('date', 'desc');
+        $sort->default('date', Direction::Desc);
     }
 
     public function relation(RelationInterface $relation): void

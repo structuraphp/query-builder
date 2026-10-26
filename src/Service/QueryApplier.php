@@ -12,6 +12,7 @@ use InvalidArgumentException;
 use LogicException;
 use ReflectionFunction;
 use ReflectionMethod;
+use StructuraPhp\QueryBuilder\Enum\Direction;
 use StructuraPhp\QueryBuilder\Enum\Mode;
 use StructuraPhp\QueryBuilder\ValueObject\ScopeArgument;
 
@@ -260,10 +261,15 @@ final readonly class QueryApplier
         $counted = [];
         $sorts = $validated['sort'] ?? null;
 
-        // An int key looks a sort up like its string form.
-        /** @var list<array{string, mixed}> $pairs */
         $pairs = \is_array($sorts)
-            ? array_map(null, array_keys($sorts), $sorts)
+            ? array_map(
+                fn (int|string $name, mixed $direction): array => [
+                    $name,
+                    Direction::from((string) TypeCaster::scalar($direction)),
+                ],
+                array_keys($sorts),
+                $sorts,
+            )
             : $this->definition->defaultSorts;
 
         foreach ($pairs as [$name, $direction]) {
@@ -280,7 +286,7 @@ final readonly class QueryApplier
                 $config->count !== null
                     ? $this->countAlias($config->count)
                     : $this->column($config->column ?? $config->name),
-                $direction === 'desc' ? 'desc' : 'asc',
+                $direction->value,
             );
         }
 

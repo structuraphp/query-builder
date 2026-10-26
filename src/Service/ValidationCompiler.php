@@ -10,7 +10,9 @@ use Illuminate\Support\Fluent;
 use Illuminate\Translation\PotentiallyTranslatedString;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
+use StructuraPhp\QueryBuilder\Enum\Direction;
 use StructuraPhp\QueryBuilder\Enum\Mode;
+use StructuraPhp\QueryBuilder\Enum\PaginationMode;
 use StructuraPhp\QueryBuilder\ValueObject\ScopeArgument;
 use Throwable;
 
@@ -301,7 +303,7 @@ final readonly class ValidationCompiler
             $rules["sort.{$name}"] = [
                 'sometimes',
                 'required',
-                Rule::in(['asc', 'desc']),
+                Rule::in(Direction::cases()),
             ];
         }
 
@@ -396,8 +398,9 @@ final readonly class ValidationCompiler
         }
 
         $data = $validator->getData();
-        $mode = $data['pagination'] ?? $this->definition->pagination->default;
-        if ($mode !== 'cursor') {
+        $mode = $data['pagination']
+            ?? $this->definition->pagination->default->value;
+        if ($mode !== PaginationMode::Cursor->value) {
             return;
         }
 

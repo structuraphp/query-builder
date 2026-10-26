@@ -11,6 +11,8 @@ use StructuraPhp\QueryBuilder\Contract\Query\WithPaginate;
 use StructuraPhp\QueryBuilder\Contract\Query\WithRelation;
 use StructuraPhp\QueryBuilder\Contract\Query\WithScope;
 use StructuraPhp\QueryBuilder\Contract\Query\WithSort;
+use StructuraPhp\QueryBuilder\Enum\Direction;
+use StructuraPhp\QueryBuilder\Enum\PaginationMode;
 use StructuraPhp\QueryBuilder\Enum\Type;
 use StructuraPhp\QueryBuilder\Exception\ConfigurationException;
 use StructuraPhp\QueryBuilder\ValueObject\Config\Filter;
@@ -49,7 +51,7 @@ final class Definition
     /** @var array<string, SortConfig> */
     public private(set) array $sorts = [];
 
-    /** @var list<array{string, string}> */
+    /** @var list<array{string, Direction}> */
     public private(set) array $defaultSorts = [];
 
     /** @var array<string, RelationConfig> */
@@ -200,7 +202,7 @@ final class Definition
      */
     private function assertCursorSorts(): void
     {
-        if ($this->pagination->default !== 'cursor') {
+        if ($this->pagination->default !== PaginationMode::Cursor) {
             return;
         }
 
@@ -265,18 +267,11 @@ final class Definition
             $this->sorts[$config->name] = $config;
         }
 
-        foreach ($sort->defaults as [$name, $direction]) {
+        foreach ($sort->defaults as [$name]) {
             if (!isset($this->sorts[$name])) {
                 throw new ConfigurationException(\sprintf(
                     'Default sort "%s" is not declared.',
                     $name,
-                ));
-            }
-
-            if (!in_array($direction, ['asc', 'desc'], true)) {
-                throw new ConfigurationException(\sprintf(
-                    'Sort direction "%s" must be asc or desc.',
-                    $direction,
                 ));
             }
         }
@@ -286,19 +281,10 @@ final class Definition
 
     private static function assertPagination(Pagination $pagination): void
     {
-        foreach ([$pagination->default, ...$pagination->allowed] as $mode) {
-            if (!in_array($mode, Pagination::MODES, true)) {
-                throw new ConfigurationException(\sprintf(
-                    'Unknown pagination mode "%s".',
-                    $mode,
-                ));
-            }
-        }
-
         if (!in_array($pagination->default, $pagination->allowed, true)) {
             throw new ConfigurationException(\sprintf(
                 'Default pagination mode "%s" is not allowed.',
-                $pagination->default,
+                $pagination->default->value,
             ));
         }
 
