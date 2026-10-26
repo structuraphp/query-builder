@@ -28,6 +28,10 @@ use StructuraPhp\QueryBuilder\ValueObject\ScopeArgument;
 
 final class Definition
 {
+    public const string NAME_PATTERN = '/^[A-Za-z_][A-Za-z0-9_]*$/';
+
+    public const string RELATION_PATTERN = '/^[A-Za-z_][A-Za-z0-9_.]*$/';
+
     public const array RESERVED = [
         'with',
         'sort',
@@ -176,7 +180,7 @@ final class Definition
     {
         $root = explode('.', $name)[0];
 
-        $valid = preg_match('/^[A-Za-z_][A-Za-z0-9_.]*$/', $name) === 1;
+        $valid = preg_match(self::RELATION_PATTERN, $name) === 1;
 
         if (!$valid || !method_exists($this->model, $root)) {
             throw new ConfigurationException(\sprintf(
@@ -278,7 +282,7 @@ final class Definition
 
     private function assertValidName(string $name): void
     {
-        if (preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/', $name) !== 1) {
+        if (preg_match(self::NAME_PATTERN, $name) !== 1) {
             throw new ConfigurationException(\sprintf(
                 '"%s" is not a valid name.',
                 $name,

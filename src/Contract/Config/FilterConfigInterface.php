@@ -8,6 +8,9 @@ use StructuraPhp\QueryBuilder\Enum\Type;
 
 interface FilterConfigInterface
 {
+    /**
+     * @param literal-string $column
+     */
     public function column(string $column): static;
 
     public function type(Type $type): static;

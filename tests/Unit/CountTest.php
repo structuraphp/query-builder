@@ -223,6 +223,8 @@ final class CountTest extends TestCase
     }
 
     /**
+     * @param literal-string $name
+     *
      * @return Closure(): ConfigurableQuery
      */
     private static function counting(string $name): Closure

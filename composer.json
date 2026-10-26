@@ -38,6 +38,9 @@
     "autoload-dev": {
         "psr-4": {
             "Tests\\StructuraPhp\\QueryBuilder\\": "tests/"
-        }
+        },
+        "classmap": [
+            "tests/PHPStan/data"
+        ]
     }
 }

@@ -246,6 +246,9 @@ final class DefinitionTest extends TestCase
         }];
     }
 
+    /**
+     * @param literal-string $name
+     */
     #[DataProvider('invalidRelations')]
     public function testInvalidRelationConfigThrows(string $name): void
     {
@@ -263,7 +266,7 @@ final class DefinitionTest extends TestCase
     }
 
     /**
-     * @return iterable<string, array{string}>
+     * @return iterable<string, array{literal-string}>
      */
     public static function invalidRelations(): iterable
     {

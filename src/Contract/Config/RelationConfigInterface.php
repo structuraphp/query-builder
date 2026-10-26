@@ -7,7 +7,7 @@ namespace StructuraPhp\QueryBuilder\Contract\Config;
 interface RelationConfigInterface
 {
     /**
-     * @param list<string> $fields
+     * @param list<literal-string> $fields
      */
     public function fields(array $fields): static;
 }

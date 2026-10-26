@@ -81,7 +81,9 @@ final class BuilderScopeTest extends TestCase
 
     /**
      * @param class-string<Model> $model
+     * @param literal-string $name
      * @param array<string, mixed> $input
+     * @param null|literal-string $method
      *
      * @return list<mixed>
      */
