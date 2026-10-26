@@ -76,9 +76,18 @@ final class ScopeNestedTest extends TestCase
         $missing = $this->errors(['viewsWithin' => ['range' => [
             'max' => '100',
         ]]]);
+        $defaulted = $this->errors(
+            ['ofStatusAmong' => ['status' => 'draft']],
+            static function (ScopeInterface $scope): void {
+                $scope->scope('ofStatusAmong')
+                    ->default(ids: [1])
+                    ->nested(ids: ['first' => ['required']]);
+            },
+        );
 
         self::assertSame([], $absent);
         self::assertArrayHasKey('viewsWithin.range.min', $missing);
+        self::assertSame([], $defaulted);
     }
 
     public function testNestedMessages(): void

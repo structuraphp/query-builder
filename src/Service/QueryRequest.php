@@ -55,9 +55,13 @@ abstract class QueryRequest extends FormRequest
     ): Validator {
         $compiler = new ValidationCompiler($this->definition());
 
+        $data = $this->queryData();
+
+        /** @var array<string, mixed> $rules */
+        $rules = $this->validationRules();
         $validator = $factory->make(
-            $this->validationData(),
-            $this->validationRules(),
+            $data,
+            $compiler->forData($rules, $data),
             array_merge($compiler->messages(), $this->messages()),
             array_merge($compiler->attributes(), $this->attributes()),
         );

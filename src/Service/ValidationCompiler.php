@@ -37,6 +37,28 @@ final readonly class ValidationCompiler
     }
 
     /**
+     * Drops the rules this query declares for parameters absent from the
+     * data: every parameter is optional, so they cannot fail, yet each one
+     * costs the validator a pass. Other rules are kept.
+     *
+     * @param array<string, mixed> $rules
+     * @param array<string, mixed> $data
+     *
+     * @return array<string, mixed>
+     */
+    public function forData(array $rules, array $data): array
+    {
+        $declared = $this->rules();
+
+        return array_filter(
+            $rules,
+            static fn (string $key): bool => !isset($declared[$key])
+                || \array_key_exists(explode('.', $key)[0], $data),
+            ARRAY_FILTER_USE_KEY,
+        );
+    }
+
+    /**
      * Runs closure casts once the rules of their argument passed, so a cast
      * only sees valid data. A cast that throws is a validation error.
      */

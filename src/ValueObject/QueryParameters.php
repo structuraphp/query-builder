@@ -54,7 +54,7 @@ final readonly class QueryParameters
 
         $instance = $validator->make(
             $input,
-            $compiler->rules(),
+            $compiler->forData($compiler->rules(), $input),
             $compiler->messages(),
             $compiler->attributes(),
         );

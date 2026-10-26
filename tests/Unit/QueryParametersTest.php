@@ -10,6 +10,7 @@ use Illuminate\Translation\ArrayLoader;
 use Illuminate\Translation\Translator;
 use Illuminate\Validation\Factory;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Validation\Validator;
 use StructuraPhp\QueryBuilder\ValueObject\QueryParameters;
 use Tests\StructuraPhp\QueryBuilder\Fixtures\Queries\FilterArticleQuery;
 use Tests\StructuraPhp\QueryBuilder\Fixtures\Queries\ScopeArticleQuery;
@@ -25,6 +26,47 @@ final class QueryParametersTest extends TestCase
             ['title' => 'Foo', 'status' => 'draft', 'views' => 5],
             ['title' => 'Bar', 'status' => 'published', 'views' => 50],
         ]);
+    }
+
+    public function testValidatorOnlyGetsTheRulesOfGivenParameters(): void
+    {
+        $keys = [];
+        $factory = $this->app?->make(Factory::class);
+        self::assertInstanceOf(Factory::class, $factory);
+        $factory->resolver(static function (
+            Translator $translator,
+            array $data,
+            array $rules,
+            array $messages,
+            array $attributes,
+        ) use (&$keys): Validator {
+            $keys = array_keys($rules);
+
+            return new Validator(
+                $translator,
+                $data,
+                $rules,
+                $messages,
+                $attributes,
+            );
+        });
+
+        QueryParameters::fromArray(
+            new FilterArticleQuery(),
+            ['title' => ['value' => 'Foo']],
+            $factory,
+        );
+
+        self::assertSame(
+            [
+                'title',
+                'title.value',
+                'title.value.*',
+                'title.mode',
+                'title.not',
+            ],
+            $keys,
+        );
     }
 
     public function testFromArrayAppliesTheQuery(): void
