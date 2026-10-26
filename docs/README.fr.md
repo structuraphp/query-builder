@@ -21,6 +21,10 @@ Pour l'installation et le démarrage rapide, voir le
 
 ## Requests et paramètres
 
+`QueryRequest` ne lit les paramètres que dans la query string : un corps
+JSON est ignoré, donc `max_input_vars` de PHP et la longueur de l'URL
+continuent de borner l'entrée.
+
 `QueryRequest` ne fait que valider. `parameters()` renvoie un
 `QueryParameters`, un value object sans dépendance HTTP, que peut recevoir
 un service de domaine :

@@ -18,6 +18,10 @@ For installation and the quick start, see the [README](../README.md).
 
 ## Requests and parameters
 
+`QueryRequest` reads the parameters from the query string only: a JSON body
+is ignored, so PHP's `max_input_vars` and the URL length keep bounding the
+input.
+
 `QueryRequest` only validates. `parameters()` returns a `QueryParameters`, a
 value object without HTTP dependency, that a domain service can receive:
 

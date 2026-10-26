@@ -5,7 +5,8 @@ declare(strict_types=1);
 namespace Tests\StructuraPhp\QueryBuilder\Feature;
 
 use Illuminate\Support\Facades\DB;
-use stdClass;
+use Illuminate\Validation\ValidationException;
+use StructuraPhp\QueryBuilder\ValueObject\QueryParameters;
 use Tests\StructuraPhp\QueryBuilder\Fixtures\Queries\CountingCastArticleQuery;
 use Tests\StructuraPhp\QueryBuilder\Fixtures\Queries\ScopeArticleQuery;
 use Tests\StructuraPhp\QueryBuilder\Fixtures\TestQueryRequest;
@@ -323,23 +324,36 @@ final class ScopeTest extends TestCase
         $response->assertNoContent();
     }
 
-    public function testEmptyJsonObjectForScopeIs422(): void
+    /**
+     * A query string cannot send an empty array: it comes from code, through
+     * fromArray().
+     */
+    public function testEmptyArgumentsForScopeAreInvalid(): void
     {
-        TestQueryRequest::$queryClass = ScopeArticleQuery::class;
+        $this->expectException(ValidationException::class);
 
-        $response = $this->json('GET', '/articles', [
-            'publishedBetween' => new stdClass(),
+        QueryParameters::fromArray(new ScopeArticleQuery(), [
+            'publishedBetween' => [],
         ]);
-
-        $response->assertUnprocessable();
     }
 
-    public function testEmptyJsonArrayForScopeIs422(): void
+    public function testEmptyArgumentsForEnumScopeAreInvalid(): void
+    {
+        $this->expectException(ValidationException::class);
+
+        QueryParameters::fromArray(new ScopeArticleQuery(), ['statut' => []]);
+    }
+
+    public function testJsonBodyIsIgnored(): void
     {
         TestQueryRequest::$queryClass = ScopeArticleQuery::class;
 
-        $response = $this->json('GET', '/articles', ['statut' => []]);
+        $response = $this->json('GET', '/articles?popular=1', [
+            'popular' => 0,
+            'minViews' => ['min' => 1000],
+        ]);
 
-        $response->assertUnprocessable();
+        $response->assertOk();
+        self::assertSame(['New'], self::column($response, 'title'));
     }
 }

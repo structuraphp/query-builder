@@ -24,6 +24,19 @@ abstract class QueryRequest extends FormRequest
         return new ValidationCompiler($this->definition())->rules();
     }
 
+    /**
+     * Only the query string: a JSON body on a GET request would bypass PHP's
+     * `max_input_vars` and the length limit of the URL.
+     *
+     * @return array<string, mixed>
+     */
+    #[Override]
+    public function validationData(): array
+    {
+        /** @var array<string, mixed> */
+        return $this->query->all();
+    }
+
     public function parameters(): QueryParameters
     {
         /** @var array<string, mixed> $validated */
