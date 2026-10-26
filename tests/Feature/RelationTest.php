@@ -57,6 +57,21 @@ final class RelationTest extends TestCase
         );
     }
 
+    public function testNestedRelationKeepsTheFieldsOfItsParent(): void
+    {
+        $response = $this->fetch(RelationArticleQuery::class, [
+            'with' => 'author.articles',
+        ]);
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('data.0.author.articles.0.title', 'Foo');
+        self::assertSame(
+            ['id', 'name', 'articles'],
+            array_keys((array) $response->json('data.0.author')),
+        );
+    }
+
     public function testSpacesAndEmptyItems(): void
     {
         $response = $this->fetch(RelationArticleQuery::class, [

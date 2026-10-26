@@ -217,6 +217,7 @@ final class DefinitionTest extends TestCase
             relation: static function (
                 RelationInterface $relation,
             ) use ($name): void {
+                $relation->relation('author');
                 $relation->relation($name);
             },
         );
@@ -237,7 +238,22 @@ final class DefinitionTest extends TestCase
 
         yield 'colon' => ['author:id'];
 
-        yield 'bad nested segment' => ['author.comments:id'];
+        yield 'bad nested segment' => ['author.articles:id'];
+    }
+
+    public function testNestedRelationNeedsItsParentDeclared(): void
+    {
+        $this->expectExceptionObject(new ConfigurationException(
+            'Relation "author.articles" needs its parent "author" declared.',
+        ));
+        $query = new ConfigurableQuery(
+            relation: static function (RelationInterface $relation): void {
+                $relation->relation('comments');
+                $relation->relation('author.articles');
+            },
+        );
+
+        Definition::fromQuery($query);
     }
 
     public function testCountMustBeARootRelation(): void

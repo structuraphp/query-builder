@@ -336,16 +336,23 @@ final readonly class QueryApplier
             return;
         }
 
-        $relations = $this->definition->relations;
-        $query->with(array_map(
-            static function (string $name) use ($relations): string {
-                $fields = $relations[$name]->fields;
+        // Laravel loads the parents of a nested relation without their
+        // fields(): name them too, so their columns stay limited.
+        $paths = [];
+        foreach (self::relationNames($with) as $name) {
+            $path = null;
+            foreach (explode('.', $name) as $segment) {
+                $path = $path === null ? $segment : "{$path}.{$segment}";
+                $paths[$path] = $this->definition->relations[$path]->fields;
+            }
+        }
 
-                return $fields === []
-                    ? $name
-                    : $name . ':' . implode(',', $fields);
-            },
-            self::relationNames($with),
+        $query->with(array_map(
+            static fn (string $path, array $fields): string => $fields === []
+                ? $path
+                : $path . ':' . implode(',', $fields),
+            array_keys($paths),
+            $paths,
         ));
     }
 

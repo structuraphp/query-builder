@@ -53,8 +53,13 @@ A nested relation is declared with its full path, and loaded the same way:
 GET /articles?with=author.profile
 ```
 
-Only the first relation of the path (`author`) is checked when the query is
-read: the nested ones depend on the related models.
+Its parent (`author`) must be declared too. Laravel loads every relation of
+the path: each one is loaded with its own `fields()`, so
+`?with=author.profile` never loads more columns of `author` than
+`?with=author`.
+
+Only the first relation of the path (`author`) is checked against the model
+when the query is read: the nested ones depend on the related models.
 
 ## Counting relations
 
@@ -100,6 +105,8 @@ A `ConfigurationException` is thrown when the query is read:
 
 - relation or count declared twice;
 - root relation that is not a method of the model;
+- nested relation whose parent is not declared (`author.profile` without
+  `author`);
 - count of a nested relation (`author.profile`).
 
 ## Known limitations

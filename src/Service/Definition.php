@@ -125,6 +125,8 @@ final class Definition
                 $definition->relations[$config->name] = $config;
             }
 
+            $definition->assertParents();
+
             foreach ($relation->counts as $name) {
                 $definition->assertCountable($name);
                 if (\in_array($name, $definition->counts, true)) {
@@ -181,6 +183,29 @@ final class Definition
                 $name,
                 $this->model::class,
             ));
+        }
+    }
+
+    /**
+     * Laravel loads every parent of a nested relation: each one must be
+     * declared, so its fields() apply.
+     */
+    private function assertParents(): void
+    {
+        foreach (array_keys($this->relations) as $name) {
+            $dot = strrpos($name, '.');
+            if ($dot === false) {
+                continue;
+            }
+
+            $parent = substr($name, 0, $dot);
+            if (!isset($this->relations[$parent])) {
+                throw new ConfigurationException(\sprintf(
+                    'Relation "%s" needs its parent "%s" declared.',
+                    $name,
+                    $parent,
+                ));
+            }
         }
     }
 

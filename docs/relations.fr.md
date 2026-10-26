@@ -68,8 +68,13 @@ la même façon :
 GET /articles?with=author.profile
 ```
 
-Seule la première relation du chemin (`author`) est vérifiée à la lecture de
-la query : les suivantes dépendent des modèles liés.
+Son parent (`author`) doit aussi être déclaré. Laravel charge chaque
+relation du chemin : chacune est chargée avec ses propres `fields()`, donc
+`?with=author.profile` ne charge jamais plus de colonnes d'`author` que
+`?with=author`.
+
+Seule la première relation du chemin (`author`) est vérifiée sur le modèle à
+la lecture de la query : les suivantes dépendent des modèles liés.
 
 ## Compter des relations
 
@@ -115,6 +120,8 @@ Une `ConfigurationException` est levée à la lecture de la query :
 
 - relation ou comptage déclaré deux fois ;
 - relation racine qui n'est pas une méthode du modèle ;
+- relation imbriquée dont le parent n'est pas déclaré (`author.profile` sans
+  `author`) ;
 - comptage d'une relation imbriquée (`author.profile`).
 
 ## Limites connues
