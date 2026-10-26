@@ -68,6 +68,8 @@ final readonly class ValidationCompiler
 
         $errors = $validator->errors();
         $data = $validator->getData();
+        // Precognition drops the rules of the fields it does not validate.
+        $rules = $validator->getRules();
 
         foreach ($this->definition->scopes as $name => [, $arguments]) {
             foreach ($arguments as $argument) {
@@ -80,6 +82,7 @@ final readonly class ValidationCompiler
                 if (
                     !$argument->check instanceof Closure
                     || $failed
+                    || !isset($rules[$key])
                     || !Arr::has($data, $key)
                 ) {
                     continue;

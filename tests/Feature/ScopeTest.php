@@ -328,6 +328,23 @@ final class ScopeTest extends TestCase
      * A query string cannot send an empty array: it comes from code, through
      * fromArray().
      */
+    public function testPrecognitionDoesNotCastUnvalidatedArguments(): void
+    {
+        TestQueryRequest::$queryClass = CountingCastArticleQuery::class;
+        CountingCastArticleQuery::$calls = 0;
+
+        $response = $this->withHeaders([
+            'Precognition' => 'true',
+            'Precognition-Validate-Only' => 'limit',
+        ])->getJson('/articles-precog?' . http_build_query([
+            'near' => ['lat' => ['x' => '1'], 'lng' => '100'],
+            'limit' => 10,
+        ]));
+
+        $response->assertNoContent();
+        self::assertSame(0, CountingCastArticleQuery::$calls);
+    }
+
     public function testEmptyArgumentsForScopeAreInvalid(): void
     {
         $this->expectException(ValidationException::class);

@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use RuntimeException;
 use StructuraPhp\QueryBuilder\Contract\Config\ScopeInterface;
+use StructuraPhp\QueryBuilder\Enum\Type;
 use StructuraPhp\QueryBuilder\Service\Definition;
 use StructuraPhp\QueryBuilder\Service\ValidationCompiler;
 use StructuraPhp\QueryBuilder\ValueObject\QueryParameters;
@@ -112,6 +113,24 @@ final class ScopeNestedTest extends TestCase
             ['exclude_without:viewsWithin.range', 'required', 'integer'],
             $rules['viewsWithin.range.min'] ?? null,
         );
+    }
+
+    public function testCastIsSkippedWhenTheArgumentIsAbsent(): void
+    {
+        $never = static fn (mixed $v): float => throw new RuntimeException(
+            'A missing argument is never cast.',
+        );
+
+        $titles = $this->titles(
+            ['near' => ['lng' => '100']],
+            static function (ScopeInterface $scope) use ($never): void {
+                $scope->scope('near')
+                    ->cast(lat: $never, lng: Type::Float)
+                    ->default(lat: 10.0);
+            },
+        );
+
+        self::assertSame(['Bar'], $titles);
     }
 
     public function testNestedMessages(): void
