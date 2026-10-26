@@ -205,12 +205,13 @@ final readonly class ValidationCompiler
                 }
 
                 // A nested `required` must not fire when the argument itself
-                // is absent.
+                // is absent. A path under `*` then matches nothing, and the
+                // dependent rule would make validation quadratic in the
+                // number of items.
                 foreach ($nested as $path => $pathRules) {
-                    $rules["{$key}.{$path}"] = [
-                        "exclude_without:{$key}",
-                        ...$pathRules,
-                    ];
+                    $rules["{$key}.{$path}"] = str_starts_with($path, '*')
+                        ? $pathRules
+                        : ["exclude_without:{$key}", ...$pathRules];
                 }
             }
         }

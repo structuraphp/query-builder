@@ -9,6 +9,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use RuntimeException;
 use StructuraPhp\QueryBuilder\Contract\Config\ScopeInterface;
+use StructuraPhp\QueryBuilder\Service\Definition;
+use StructuraPhp\QueryBuilder\Service\ValidationCompiler;
 use StructuraPhp\QueryBuilder\ValueObject\QueryParameters;
 use Tests\StructuraPhp\QueryBuilder\Fixtures\Queries\ConfigurableQuery;
 use Tests\StructuraPhp\QueryBuilder\Fixtures\Range;
@@ -88,6 +90,28 @@ final class ScopeNestedTest extends TestCase
         self::assertSame([], $absent);
         self::assertArrayHasKey('viewsWithin.range.min', $missing);
         self::assertSame([], $defaulted);
+    }
+
+    /**
+     * `exclude_without` is a dependent rule: on each item of a long list, it
+     * made validation quadratic.
+     */
+    public function testItemRulesDoNotDependOnTheArgument(): void
+    {
+        $definition = Definition::fromQuery(
+            new ConfigurableQuery(scope: $this->scopes(...)),
+        );
+
+        $rules = new ValidationCompiler($definition)->rules();
+
+        self::assertSame(
+            ['required', 'integer'],
+            $rules['inRanges.ranges.*.min'] ?? null,
+        );
+        self::assertSame(
+            ['exclude_without:viewsWithin.range', 'required', 'integer'],
+            $rules['viewsWithin.range.min'] ?? null,
+        );
     }
 
     public function testNestedMessages(): void
