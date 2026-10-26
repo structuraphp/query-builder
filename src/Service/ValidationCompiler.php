@@ -52,7 +52,7 @@ final readonly class ValidationCompiler
                 $key = "{$name}.{$argument->name}";
                 $failed = array_any(
                     $errors->keys(),
-                    fn (string $error): bool => $error === $key
+                    static fn (string $error): bool => $error === $key
                         || str_starts_with($error, "{$key}."),
                 );
                 if (
@@ -151,7 +151,7 @@ final readonly class ValidationCompiler
             $rules[$name] = ['array', 'filled'];
             $optional = array_all(
                 $arguments,
-                fn (ScopeArgument $argument): bool => $argument->default
+                static fn (ScopeArgument $argument): bool => $argument->default
                     instanceof Closure,
             );
             if ($optional) {
@@ -161,7 +161,7 @@ final readonly class ValidationCompiler
                     'sometimes',
                     'required',
                     Rule::when(
-                        fn (Fluent $input): bool => \is_array(
+                        static fn (Fluent $input): bool => \is_array(
                             $input->get($name),
                         ),
                         ['array', 'filled'],
@@ -254,13 +254,13 @@ final readonly class ValidationCompiler
             return ["required_with:{$name}", ...$single];
         }
 
-        $mode = fn (Fluent $input): mixed => $input->get("{$name}.mode");
+        $mode = static fn (Fluent $input): mixed => $input->get("{$name}.mode");
         $special = [Mode::In->value, Mode::IsNull->value];
 
         return [
             $null
                 ? Rule::when(
-                    fn (Fluent $input): bool => $mode($input)
+                    static fn (Fluent $input): bool => $mode($input)
                         === Mode::IsNull->value,
                     ['prohibited'],
                     ["required_with:{$name}"],
@@ -268,13 +268,13 @@ final readonly class ValidationCompiler
                 : "required_with:{$name}",
             ...$in
                 ? [Rule::when(
-                    fn (Fluent $input): bool => $mode($input)
+                    static fn (Fluent $input): bool => $mode($input)
                         === Mode::In->value,
                     ['array', 'min:1'],
                 )]
                 : [],
             Rule::when(
-                fn (Fluent $input): bool => !\in_array(
+                static fn (Fluent $input): bool => !\in_array(
                     $mode($input),
                     $special,
                     true,
@@ -334,7 +334,7 @@ final readonly class ValidationCompiler
             return [$key => ['prohibited']];
         }
 
-        $rule = function (
+        $rule = static function (
             string $attribute,
             mixed $value,
             Closure $fail,
@@ -343,7 +343,7 @@ final readonly class ValidationCompiler
             $with = \is_string($value) ? $value : '';
             $unknown = array_any(
                 QueryApplier::relationNames($with),
-                fn (string $name): bool => !isset($declared[$name]),
+                static fn (string $name): bool => !isset($declared[$name]),
             );
             if ($unknown) {
                 $fail('validation.in')->translate();

@@ -139,7 +139,7 @@ class Article extends Model
      */
     public function scopeInRanges(Builder $query, array $ranges): void
     {
-        $query->where(function (Builder $query) use ($ranges): void {
+        $query->where(static function (Builder $query) use ($ranges): void {
             foreach ($ranges as $range) {
                 $query->getQuery()->orWhereBetween(
                     'views',

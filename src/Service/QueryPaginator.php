@@ -76,7 +76,7 @@ final class QueryPaginator
         ];
         $sorted = array_any(
             $query->getQuery()->orders ?? [],
-            fn (mixed $order): bool => \is_array($order)
+            static fn (mixed $order): bool => \is_array($order)
                 && \in_array($order['column'] ?? null, $keys, true),
         );
         if (!$sorted) {

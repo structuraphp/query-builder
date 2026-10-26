@@ -23,7 +23,7 @@ final class CountingCastArticleQuery implements FromModel, WithScope
     public function scope(ScopeInterface $scope): void
     {
         $scope->scope('near')->cast(
-            lat: function (mixed $value): float {
+            lat: static function (mixed $value): float {
                 self::$calls++;
 
                 return (float) TypeCaster::scalar($value);

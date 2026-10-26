@@ -80,7 +80,7 @@ final class ScopeContextTest extends TestCase
     {
         $titles = $this->titles(
             ['among' => '1'],
-            ['among' => ['ids' => fn (): array => [2]]],
+            ['among' => ['ids' => static fn (): array => [2]]],
         );
 
         self::assertSame(['Bar'], $titles);
@@ -88,7 +88,7 @@ final class ScopeContextTest extends TestCase
 
     public function testContextClosureIsSkippedWhenNotRequested(): void
     {
-        $fail = fn () => throw new RuntimeException();
+        $fail = static fn () => throw new RuntimeException();
 
         $titles = $this->titles([], ['among' => ['ids' => $fail]]);
 
@@ -97,7 +97,7 @@ final class ScopeContextTest extends TestCase
 
     public function testContextClosureReceivesCastRequestArguments(): void
     {
-        $ids = fn (Status $status): array => $status === Status::Draft
+        $ids = static fn (Status $status): array => $status === Status::Draft
             ? [2, 3]
             : [];
 
@@ -115,13 +115,15 @@ final class ScopeContextTest extends TestCase
 
         $this->titles(
             ['ofStatusAmong' => ['status' => 'draft']],
-            ['ofStatusAmong' => ['ids' => fn (string $foo): array => []]],
+            ['ofStatusAmong' => ['ids' => static fn (
+                string $foo,
+            ): array => []]],
         );
     }
 
     public function testClosureTypedArgumentReceivesTheClosure(): void
     {
-        $callback = function (Builder $query): void {
+        $callback = static function (Builder $query): void {
             $query->where('title', 'Bar');
         };
 
@@ -135,7 +137,7 @@ final class ScopeContextTest extends TestCase
 
     public function testConfigDefaultReplacesMissingContext(): void
     {
-        $scope = function (ScopeInterface $scope): void {
+        $scope = static function (ScopeInterface $scope): void {
             $scope->scope('among')->context('ids')->default(ids: [3]);
         };
 
@@ -177,7 +179,7 @@ final class ScopeContextTest extends TestCase
         array $context = [],
         ?Closure $scope = null,
     ): array {
-        $scope ??= function (ScopeInterface $scope): void {
+        $scope ??= static function (ScopeInterface $scope): void {
             $scope->scope('ownedBy')->context('author');
             $scope->scope('among')->context('ids');
             $scope->scope('tapped')->context('callback');

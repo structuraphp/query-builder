@@ -22,14 +22,14 @@ abstract class TestCase extends BaseTestCase
     {
         parent::setUp();
 
-        Schema::create('authors', function (Blueprint $table): void {
+        Schema::create('authors', static function (Blueprint $table): void {
             $table->id();
             $table->string('name');
             $table->string('email');
             $table->string('password');
         });
 
-        Schema::create('articles', function (Blueprint $table): void {
+        Schema::create('articles', static function (Blueprint $table): void {
             $table->id();
             $table->foreignId('author_id')->nullable();
             $table->string('title');
@@ -41,7 +41,7 @@ abstract class TestCase extends BaseTestCase
             $table->timestamps();
         });
 
-        Schema::create('comments', function (Blueprint $table): void {
+        Schema::create('comments', static function (Blueprint $table): void {
             $table->id();
             $table->foreignId('article_id');
             $table->string('body');

@@ -41,7 +41,9 @@ final class QueryApplierTest extends TestCase
     public function testContextClosureNamesTheMissingRequestArgument(): void
     {
         $parameters = QueryParameters::fromArray(
-            new ConfigurableQuery(scope: function (ScopeInterface $s): void {
+            new ConfigurableQuery(scope: static function (
+                ScopeInterface $s,
+            ): void {
                 $s->scope('ofStatusAmong')->context('ids');
             }),
             ['ofStatusAmong' => ['status' => 'draft']],
@@ -54,7 +56,7 @@ final class QueryApplierTest extends TestCase
         );
 
         $parameters->builder([
-            'ofStatusAmong' => ['ids' => fn (string $foo): array => []],
+            'ofStatusAmong' => ['ids' => static fn (string $foo): array => []],
         ]);
     }
 

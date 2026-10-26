@@ -92,7 +92,9 @@ final class BuilderScopeTest extends TestCase
         ?string $method = null,
     ): array {
         $query = new ConfigurableQuery(
-            scope: function (ScopeInterface $scope) use ($name, $method): void {
+            scope: static function (
+                ScopeInterface $scope,
+            ) use ($name, $method): void {
                 $config = $scope->scope($name);
                 if ($method !== null) {
                     $config->method($method);

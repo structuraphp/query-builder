@@ -95,7 +95,7 @@ final class ScopeNestedTest extends TestCase
 
     public function testNestedAttributes(): void
     {
-        $scope = function (ScopeInterface $scope): void {
+        $scope = static function (ScopeInterface $scope): void {
             $scope->scope('inRanges')
                 ->nested(ranges: ['*.min' => ['required']])
                 ->attribute(ranges: 'plages')
@@ -120,7 +120,7 @@ final class ScopeNestedTest extends TestCase
 
     public function testArrayArgumentRejectsNestedArraysByDefault(): void
     {
-        $scope = function (ScopeInterface $scope): void {
+        $scope = static function (ScopeInterface $scope): void {
             $scope->scope('ofStatuses');
         };
 
@@ -134,7 +134,7 @@ final class ScopeNestedTest extends TestCase
 
     public function testEachAllowsNestedArrays(): void
     {
-        $scope = function (ScopeInterface $scope): void {
+        $scope = static function (ScopeInterface $scope): void {
             $scope->scope('inRanges')->each(ranges: ['array']);
         };
 
@@ -167,9 +167,11 @@ final class ScopeNestedTest extends TestCase
 
     public function testCastFailureOnValidDataIsAValidationError(): void
     {
-        $scope = function (ScopeInterface $scope): void {
+        $scope = static function (ScopeInterface $scope): void {
             $scope->scope('viewsInRange')->cast(
-                range: fn (mixed $v): Range => throw new RuntimeException(),
+                range: static fn (
+                    mixed $v,
+                ): Range => throw new RuntimeException(),
             );
         };
 

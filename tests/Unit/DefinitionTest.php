@@ -42,15 +42,21 @@ final class DefinitionTest extends TestCase
      */
     public static function invalidPagination(): iterable
     {
-        yield 'refused default' => [function (PaginationInterface $p): void {
+        yield 'refused default' => [static function (
+            PaginationInterface $p,
+        ): void {
             $p->allow(PaginationMode::Offset)->default(PaginationMode::Cursor);
         }, 'Default pagination mode "cursor" is not allowed.'];
 
-        yield 'limit below 1' => [function (PaginationInterface $p): void {
+        yield 'limit below 1' => [static function (
+            PaginationInterface $p,
+        ): void {
             $p->limit(0);
         }, 'Pagination limit must be between 1 and 100.'];
 
-        yield 'limit above max' => [function (PaginationInterface $p): void {
+        yield 'limit above max' => [static function (
+            PaginationInterface $p,
+        ): void {
             $p->limit(101);
         }, 'Pagination limit must be between 1 and 100.'];
     }
@@ -59,7 +65,9 @@ final class DefinitionTest extends TestCase
     public function testLimitBoundsAreAllowed(int $limit): void
     {
         $query = new ConfigurableQuery(
-            pagination: function (PaginationInterface $p) use ($limit): void {
+            pagination: static function (
+                PaginationInterface $p,
+            ) use ($limit): void {
                 $p->limit($limit);
             },
         );
@@ -96,24 +104,24 @@ final class DefinitionTest extends TestCase
      */
     public static function invalidFilters(): iterable
     {
-        yield 'reserved name' => [function (FilterInterface $f): void {
+        yield 'reserved name' => [static function (FilterInterface $f): void {
             $f->filter('page')->type(Type::String);
         }];
 
-        yield 'duplicate' => [function (FilterInterface $f): void {
+        yield 'duplicate' => [static function (FilterInterface $f): void {
             $f->filter('title')->type(Type::String);
             $f->filter('title')->type(Type::String);
         }];
 
-        yield 'missing type' => [function (FilterInterface $f): void {
+        yield 'missing type' => [static function (FilterInterface $f): void {
             $f->filter('title');
         }];
 
-        yield 'dot in name' => [function (FilterInterface $f): void {
+        yield 'dot in name' => [static function (FilterInterface $f): void {
             $f->filter('a.b')->type(Type::String);
         }];
 
-        yield 'star in name' => [function (FilterInterface $f): void {
+        yield 'star in name' => [static function (FilterInterface $f): void {
             $f->filter('a*')->type(Type::String);
         }];
     }
@@ -135,20 +143,22 @@ final class DefinitionTest extends TestCase
      */
     public static function invalidSorts(): iterable
     {
-        yield 'undeclared default' => [function (SortInterface $s): void {
+        yield 'undeclared default' => [static function (
+            SortInterface $s,
+        ): void {
             $s->default('title');
         }];
 
-        yield 'duplicate' => [function (SortInterface $s): void {
+        yield 'duplicate' => [static function (SortInterface $s): void {
             $s->sort('title');
             $s->sort('title');
         }];
 
-        yield 'dot in name' => [function (SortInterface $s): void {
+        yield 'dot in name' => [static function (SortInterface $s): void {
             $s->sort('a.b');
         }];
 
-        yield 'star in name' => [function (SortInterface $s): void {
+        yield 'star in name' => [static function (SortInterface $s): void {
             $s->sort('a*');
         }];
     }
@@ -161,7 +171,7 @@ final class DefinitionTest extends TestCase
     {
         $this->expectException(ConfigurationException::class);
         $query = new ConfigurableQuery(
-            filter: function (FilterInterface $filter): void {
+            filter: static function (FilterInterface $filter): void {
                 $filter->filter('title')->type(Type::String);
             },
             scope: $configure,
@@ -175,24 +185,26 @@ final class DefinitionTest extends TestCase
      */
     public static function invalidScopes(): iterable
     {
-        yield 'same name as filter' => [function (ScopeInterface $s): void {
+        yield 'same name as filter' => [static function (
+            ScopeInterface $s,
+        ): void {
             $s->scope('title')->method('popular');
         }];
 
-        yield 'reserved name' => [function (ScopeInterface $s): void {
+        yield 'reserved name' => [static function (ScopeInterface $s): void {
             $s->scope('limit')->method('popular');
         }];
 
-        yield 'duplicate' => [function (ScopeInterface $s): void {
+        yield 'duplicate' => [static function (ScopeInterface $s): void {
             $s->scope('hot')->method('popular');
             $s->scope('hot')->method('popular');
         }];
 
-        yield 'dot in name' => [function (ScopeInterface $s): void {
+        yield 'dot in name' => [static function (ScopeInterface $s): void {
             $s->scope('a.b')->method('popular');
         }];
 
-        yield 'star in name' => [function (ScopeInterface $s): void {
+        yield 'star in name' => [static function (ScopeInterface $s): void {
             $s->scope('a*')->method('popular');
         }];
     }
@@ -202,7 +214,9 @@ final class DefinitionTest extends TestCase
     {
         $this->expectException(ConfigurationException::class);
         $query = new ConfigurableQuery(
-            relation: function (RelationInterface $relation) use ($name): void {
+            relation: static function (
+                RelationInterface $relation,
+            ) use ($name): void {
                 $relation->relation($name);
             },
         );
@@ -232,7 +246,7 @@ final class DefinitionTest extends TestCase
             '"author.comments" is not a valid name.',
         ));
         $query = new ConfigurableQuery(
-            relation: function (RelationInterface $relation): void {
+            relation: static function (RelationInterface $relation): void {
                 $relation->count('author.comments');
             },
         );
@@ -247,10 +261,10 @@ final class DefinitionTest extends TestCase
             . ' with the default cursor pagination.',
         ));
         $query = new ConfigurableQuery(
-            pagination: function (PaginationInterface $p): void {
+            pagination: static function (PaginationInterface $p): void {
                 $p->default(PaginationMode::Cursor);
             },
-            sort: function (SortInterface $s): void {
+            sort: static function (SortInterface $s): void {
                 $s->sort('popularity')->count('comments');
                 $s->default('popularity');
             },

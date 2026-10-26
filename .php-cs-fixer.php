@@ -29,6 +29,7 @@ return $config
         // Added rules
         'declare_strict_types' => true,
         'phpdoc_line_span' => ['property' => 'single', 'const' => 'single'],
+        'static_lambda' => true,
 
         // Override @PhpCsFixer
         // Lines stay under 80 characters: a long `implements` list wraps.

@@ -85,7 +85,8 @@ final class ScopeReflectorTest extends TestCase
 
     public function testConfigDefaultWinsOverPhpDefault(): void
     {
-        $config = new ScopeConfig('minViews')->default(min: fn (): int => 50);
+        $config = new ScopeConfig('minViews')
+            ->default(min: static fn (): int => 50);
 
         [$min] = $this->arguments($config);
         $default = $min->default instanceof Closure ? ($min->default)() : null;
@@ -106,7 +107,7 @@ final class ScopeReflectorTest extends TestCase
     public function testMutableDateDefaultIsConverted(): void
     {
         $config = new ScopeConfig('publishedBetween')->default(
-            to: fn (): CarbonInterface => now(),
+            to: static fn (): CarbonInterface => now(),
         );
 
         [, $to] = $this->arguments($config);
@@ -170,7 +171,7 @@ final class ScopeReflectorTest extends TestCase
     public function testClosureCastIsCheckedAfterTheRules(): void
     {
         $config = new ScopeConfig('near')->cast(
-            lat: fn (mixed $v) => throw new RuntimeException(),
+            lat: static fn (mixed $v) => throw new RuntimeException(),
             lng: Type::Float,
         );
 
@@ -241,7 +242,7 @@ final class ScopeReflectorTest extends TestCase
             new ScopeTypedArticle(),
         );
         $names = array_map(
-            fn (ScopeArgument $argument): string => $argument->name,
+            static fn (ScopeArgument $argument): string => $argument->name,
             $arguments,
         );
 
@@ -377,118 +378,117 @@ final class ScopeReflectorTest extends TestCase
         $context = 'comes from the context: it takes no';
 
         yield 'unknown scope' => [
-            fn (): ScopeConfig => new ScopeConfig('missing'),
+            static fn (): ScopeConfig => new ScopeConfig('missing'),
             'Scope "missing" does not exist on ' . Article::class . '.',
         ];
 
         yield 'untyped without cast' => [
-            fn (): ScopeConfig => new ScopeConfig('near'),
+            static fn (): ScopeConfig => new ScopeConfig('near'),
             'Scope "near" argument "lat" ' . $untyped,
         ];
 
         yield 'unknown default argument' => [
-            fn (): ScopeConfig => new ScopeConfig('publishedBetween')->default(
-                foo: 1,
-            ),
+            static fn (): ScopeConfig => new ScopeConfig('publishedBetween')
+                ->default(foo: 1),
             'Scope "publishedBetween" has no argument "foo".',
         ];
 
         yield 'unknown cast argument' => [
-            fn (): ScopeConfig => new ScopeConfig('publishedBetween')->cast(
-                foo: Type::String,
-            ),
+            static fn (): ScopeConfig => new ScopeConfig('publishedBetween')
+                ->cast(foo: Type::String),
             'Scope "publishedBetween" has no argument "foo".',
         ];
 
         yield 'positional rules' => [
-            fn (): ScopeConfig => new ScopeConfig('ofStatuses')->rules([
+            static fn (): ScopeConfig => new ScopeConfig('ofStatuses')->rules([
                 'max:2',
             ]),
             'Scope "ofStatuses" options must use named arguments.',
         ];
 
         yield 'union type' => [
-            fn (): ScopeConfig => new ScopeConfig('union'),
+            static fn (): ScopeConfig => new ScopeConfig('union'),
             'Scope "union" argument "value" ' . $untyped,
         ];
 
         yield 'unknown context argument' => [
-            fn (): ScopeConfig => new ScopeConfig('ownedBy')->context('foo'),
+            static fn (): ScopeConfig => new ScopeConfig('ownedBy')
+                ->context('foo'),
             'Scope "ownedBy" has no argument "foo".',
         ];
 
         yield 'rules on a context argument' => [
-            fn (): ScopeConfig => new ScopeConfig('ownedBy')
+            static fn (): ScopeConfig => new ScopeConfig('ownedBy')
                 ->context('author')
                 ->rules(author: ['required']),
             'Scope "ownedBy" argument "author" ' . $context . ' rules().',
         ];
 
         yield 'cast on a context argument' => [
-            fn (): ScopeConfig => new ScopeConfig('ownedBy')
+            static fn (): ScopeConfig => new ScopeConfig('ownedBy')
                 ->context('author')
                 ->cast(author: Type::Integer),
             'Scope "ownedBy" argument "author" ' . $context . ' cast().',
         ];
 
         yield 'each on a context argument' => [
-            fn (): ScopeConfig => new ScopeConfig('among')
+            static fn (): ScopeConfig => new ScopeConfig('among')
                 ->context('ids')
                 ->each(ids: ['integer']),
             'Scope "among" argument "ids" ' . $context . ' each().',
         ];
 
         yield 'messages on a context argument' => [
-            fn (): ScopeConfig => new ScopeConfig('ownedBy')
+            static fn (): ScopeConfig => new ScopeConfig('ownedBy')
                 ->context('author')
                 ->messages(author: ['required' => 'Foo.']),
             'Scope "ownedBy" argument "author" ' . $context . ' messages().',
         ];
 
         yield 'attribute on a context argument' => [
-            fn (): ScopeConfig => new ScopeConfig('ownedBy')
+            static fn (): ScopeConfig => new ScopeConfig('ownedBy')
                 ->context('author')
                 ->attribute(author: 'auteur'),
             'Scope "ownedBy" argument "author" ' . $context . ' attribute().',
         ];
 
         yield 'unknown nested argument' => [
-            fn (): ScopeConfig => new ScopeConfig('inRanges')->nested(
+            static fn (): ScopeConfig => new ScopeConfig('inRanges')->nested(
                 foo: ['*' => ['array']],
             ),
             'Scope "inRanges" has no argument "foo".',
         ];
 
         yield 'positional nested' => [
-            fn (): ScopeConfig => new ScopeConfig('inRanges')->nested([
+            static fn (): ScopeConfig => new ScopeConfig('inRanges')->nested([
                 '*' => ['array'],
             ]),
             'Scope "inRanges" options must use named arguments.',
         ];
 
         yield 'nested on a context argument' => [
-            fn (): ScopeConfig => new ScopeConfig('among')
+            static fn (): ScopeConfig => new ScopeConfig('among')
                 ->context('ids')
                 ->nested(ids: ['*' => ['integer']]),
             'Scope "among" argument "ids" ' . $context . ' nested().',
         ];
 
         yield 'unknown nested attribute argument' => [
-            fn (): ScopeConfig => new ScopeConfig('inRanges')->attribute(
+            static fn (): ScopeConfig => new ScopeConfig('inRanges')->attribute(
                 foo: ['*.min' => 'minimum'],
             ),
             'Scope "inRanges" has no argument "foo".',
         ];
 
         yield 'nested attribute on a context argument' => [
-            fn (): ScopeConfig => new ScopeConfig('among')
+            static fn (): ScopeConfig => new ScopeConfig('among')
                 ->context('ids')
                 ->attribute(ids: ['*' => 'identifiant']),
             'Scope "among" argument "ids" ' . $context . ' attribute().',
         ];
 
         yield 'cast to non enum class' => [
-            fn (): ScopeConfig => new ScopeConfig('near')->cast(
+            static fn (): ScopeConfig => new ScopeConfig('near')->cast(
                 // @phpstan-ignore argument.type
                 lat: stdClass::class,
                 lng: Type::Float,

@@ -126,7 +126,7 @@ final class ValidationTest extends TestCase
     public function testEachAndNestedItemRulesBothApply(): void
     {
         $query = new ConfigurableQuery(
-            scope: function (ScopeInterface $scope): void {
+            scope: static function (ScopeInterface $scope): void {
                 $scope->scope('among')
                     ->each(ids: ['integer', 'min:1'])
                     ->nested(ids: ['*' => ['max:100']]);
@@ -143,7 +143,7 @@ final class ValidationTest extends TestCase
     public function testFilterAttributeNamesTheFilterInMessages(): void
     {
         $query = new ConfigurableQuery(
-            filter: function (FilterInterface $filter): void {
+            filter: static function (FilterInterface $filter): void {
                 $filter->filter('title')
                     ->type(Type::String)
                     ->attribute('titre');
@@ -164,7 +164,7 @@ final class ValidationTest extends TestCase
     public function testNullableFilterTakesAListInInMode(): void
     {
         $query = new ConfigurableQuery(
-            filter: function (FilterInterface $filter): void {
+            filter: static function (FilterInterface $filter): void {
                 $filter->filter('views')->type(Type::Integer)->nullable();
             },
         );
@@ -214,7 +214,7 @@ final class ValidationTest extends TestCase
     public function testNullableFilterNeedsAValueOutsideNullMode(): void
     {
         $query = new ConfigurableQuery(
-            filter: function (FilterInterface $filter): void {
+            filter: static function (FilterInterface $filter): void {
                 $filter->filter('published_at')->type(Type::Date)->nullable();
             },
         );
@@ -283,7 +283,7 @@ final class ValidationTest extends TestCase
     public function testRefusedCursorIsTheOnlyError(): void
     {
         $query = $this->countQuery(
-            function (PaginationInterface $pagination): void {
+            static function (PaginationInterface $pagination): void {
                 $pagination->allow(PaginationMode::Offset);
             },
         );
@@ -327,7 +327,9 @@ final class ValidationTest extends TestCase
     {
         Route::get(
             '/articles-validated',
-            fn (TestQueryRequest $request): mixed => $request->validated(),
+            static fn (
+                TestQueryRequest $request,
+            ): mixed => $request->validated(),
         );
         TestQueryRequest::$queryClass = $query;
 
@@ -344,7 +346,7 @@ final class ValidationTest extends TestCase
     private function filterQuery(): ConfigurableQuery
     {
         return new ConfigurableQuery(
-            filter: function (FilterInterface $filter): void {
+            filter: static function (FilterInterface $filter): void {
                 $filter->filter('featured')->type(Type::Boolean);
                 $filter->filter('published_at')
                     ->type(Type::Date)
@@ -360,11 +362,11 @@ final class ValidationTest extends TestCase
     {
         return new ConfigurableQuery(
             pagination: $pagination,
-            relation: function (RelationInterface $relation): void {
+            relation: static function (RelationInterface $relation): void {
                 $relation->relation('author');
                 $relation->count('comments');
             },
-            sort: function (SortInterface $sort): void {
+            sort: static function (SortInterface $sort): void {
                 $sort->sort('comments')->count('comments');
             },
         );

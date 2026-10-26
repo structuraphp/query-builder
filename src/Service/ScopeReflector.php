@@ -38,7 +38,9 @@ final class ScopeReflector
         $offset = $this->onBuilder($model, $config) ? 0 : 1;
         $parameters = \array_slice($method->getParameters(), $offset);
         $names = array_map(
-            fn (ReflectionParameter $parameter): string => $parameter->name,
+            static fn (
+                ReflectionParameter $parameter,
+            ): string => $parameter->name,
             $parameters,
         );
 
@@ -181,7 +183,11 @@ final class ScopeReflector
      */
     private function flat(): Closure
     {
-        return function (string $attribute, mixed $value, Closure $fail): void {
+        return static function (
+            string $attribute,
+            mixed $value,
+            Closure $fail,
+        ): void {
             /** @var Closure(string): PotentiallyTranslatedString $fail */
             if (\is_array($value)) {
                 $fail('validation.in')->translate();
@@ -230,7 +236,7 @@ final class ScopeReflector
             each: [],
             messages: [],
             attribute: null,
-            cast: fn (mixed $value): mixed => $value,
+            cast: static fn (mixed $value): mixed => $value,
             default: $this->default($config, $parameter),
             context: true,
             lazy: !\in_array($type, [Closure::class, 'callable'], true),
@@ -278,7 +284,9 @@ final class ScopeReflector
     private function closure(Closure $cast): array
     {
         $results = [];
-        $memoized = function (mixed $value) use ($cast, &$results): mixed {
+        $memoized = static function (
+            mixed $value,
+        ) use ($cast, &$results): mixed {
             $key = serialize($value);
             if (!\array_key_exists($key, $results)) {
                 $results[$key] = $cast($value);
@@ -312,7 +320,7 @@ final class ScopeReflector
         }
 
         if ($class === 'array') {
-            return [['array'], fn (mixed $value): mixed => $value];
+            return [['array'], static fn (mixed $value): mixed => $value];
         }
 
         if ($class !== null && is_subclass_of($class, BackedEnum::class)) {
@@ -326,7 +334,7 @@ final class ScopeReflector
         if ($class !== null && is_a(Carbon::class, $class, true)) {
             return [
                 TypeCaster::rules(Type::Date),
-                fn (mixed $value): ?Carbon => Carbon::createFromFormat(
+                static fn (mixed $value): ?Carbon => Carbon::createFromFormat(
                     '!Y-m-d',
                     (string) TypeCaster::scalar($value),
                 ),
@@ -348,7 +356,7 @@ final class ScopeReflector
     {
         return [
             TypeCaster::rules($type),
-            fn (mixed $value): mixed => TypeCaster::cast($type, $value),
+            static fn (mixed $value): mixed => TypeCaster::cast($type, $value),
         ];
     }
 
@@ -411,7 +419,7 @@ final class ScopeReflector
             $default = $config->defaults[$name];
             $resolve = $default instanceof Closure
                 ? $default
-                : fn (): mixed => $default;
+                : static fn (): mixed => $default;
 
             return fn (): mixed => $this->coerceDate($parameter, $resolve());
         }
@@ -419,7 +427,7 @@ final class ScopeReflector
         if ($parameter->isDefaultValueAvailable()) {
             $value = $parameter->getDefaultValue();
 
-            return fn (): mixed => $value;
+            return static fn (): mixed => $value;
         }
 
         return null;

@@ -101,7 +101,7 @@ final class CountTest extends TestCase
         ]);
         DB::table('articles')->where('id', 1)->update(['author_id' => 1]);
         $query = new ConfigurableQuery(
-            sort: function (SortInterface $sort): void {
+            sort: static function (SortInterface $sort): void {
                 $sort->sort('author')->count('author');
                 $sort->sort('comments')->count('comments');
             },
@@ -166,40 +166,40 @@ final class CountTest extends TestCase
         yield 'nested relation' => [self::counting('author.profile')];
 
         yield 'declared twice' => [
-            fn (): ConfigurableQuery => new ConfigurableQuery(
-                relation: function (RelationInterface $r): void {
+            static fn (): ConfigurableQuery => new ConfigurableQuery(
+                relation: static function (RelationInterface $r): void {
                     $r->count('comments')->count('comments');
                 },
             ),
         ];
 
         yield 'reserved name' => [
-            fn (): ConfigurableQuery => new ConfigurableQuery(
-                filter: function (FilterInterface $f): void {
+            static fn (): ConfigurableQuery => new ConfigurableQuery(
+                filter: static function (FilterInterface $f): void {
                     $f->filter('count')->type(Type::Integer);
                 },
             ),
         ];
 
         yield 'sort on an unknown relation' => [
-            fn (): ConfigurableQuery => new ConfigurableQuery(
-                sort: function (SortInterface $s): void {
+            static fn (): ConfigurableQuery => new ConfigurableQuery(
+                sort: static function (SortInterface $s): void {
                     $s->sort('tags')->count('tags');
                 },
             ),
         ];
 
         yield 'sort with column and count' => [
-            fn (): ConfigurableQuery => new ConfigurableQuery(
-                sort: function (SortInterface $s): void {
+            static fn (): ConfigurableQuery => new ConfigurableQuery(
+                sort: static function (SortInterface $s): void {
                     $s->sort('comments')->column('views')->count('comments');
                 },
             ),
         ];
 
         yield 'cursor by default with a default count sort' => [
-            fn (): ConfigurableQuery => new ConfigurableQuery(
-                pagination: function (PaginationInterface $p): void {
+            static fn (): ConfigurableQuery => new ConfigurableQuery(
+                pagination: static function (PaginationInterface $p): void {
                     $p->default(PaginationMode::Cursor);
                 },
                 sort: self::defaultCountSort(...),
@@ -212,8 +212,8 @@ final class CountTest extends TestCase
      */
     private static function counting(string $name): Closure
     {
-        return fn (): ConfigurableQuery => new ConfigurableQuery(
-            relation: function (RelationInterface $r) use ($name): void {
+        return static fn (): ConfigurableQuery => new ConfigurableQuery(
+            relation: static function (RelationInterface $r) use ($name): void {
                 $r->count($name);
             },
         );
@@ -231,11 +231,11 @@ final class CountTest extends TestCase
     private function articleQuery(?Closure $sort = null): ConfigurableQuery
     {
         return new ConfigurableQuery(
-            relation: function (RelationInterface $relation): void {
+            relation: static function (RelationInterface $relation): void {
                 $relation->relation('author');
                 $relation->count('comments');
             },
-            sort: $sort ?? function (SortInterface $sort): void {
+            sort: $sort ?? static function (SortInterface $sort): void {
                 $sort->sort('title');
                 $sort->sort('comments')->count('comments');
             },

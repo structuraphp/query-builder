@@ -56,7 +56,9 @@ final readonly class QueryApplier
     {
         $names = array_map(trim(...), explode(',', $with));
 
-        return array_filter($names, fn (string $name): bool => $name !== '');
+        return array_filter($names, static fn (
+            string $name,
+        ): bool => $name !== '');
     }
 
     /**
@@ -68,7 +70,7 @@ final readonly class QueryApplier
     {
         return array_filter(
             $arguments,
-            fn (ScopeArgument $argument): bool => !$argument->context,
+            static fn (ScopeArgument $argument): bool => !$argument->context,
         );
     }
 
@@ -89,10 +91,12 @@ final readonly class QueryApplier
             }
 
             $names = array_map(
-                fn (ScopeArgument $argument): string => $argument->name,
+                static fn (ScopeArgument $argument): string => $argument->name,
                 array_filter(
                     $arguments,
-                    fn (ScopeArgument $argument): bool => $argument->context,
+                    static fn (
+                        ScopeArgument $argument,
+                    ): bool => $argument->context,
                 ),
             );
             foreach (array_diff(array_keys($values), $names) as $unknown) {
@@ -125,14 +129,16 @@ final readonly class QueryApplier
             $value = match (true) {
                 $mode === Mode::IsNull => null,
                 $mode === Mode::In && \is_array($input['value']) => array_map(
-                    fn (mixed $item): mixed => TypeCaster::cast($type, $item),
+                    static fn (
+                        mixed $item,
+                    ): mixed => TypeCaster::cast($type, $item),
                     $input['value'],
                 ),
                 default => TypeCaster::cast($type, $input['value']),
             };
 
             if (filter_var($input['not'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
-                $query->whereNot(fn (Builder $q) => FilterApplier::apply(
+                $query->whereNot(static fn (Builder $q) => FilterApplier::apply(
                     $q,
                     $type,
                     $column,
@@ -263,7 +269,7 @@ final readonly class QueryApplier
 
         $pairs = \is_array($sorts)
             ? array_map(
-                fn (int|string $name, mixed $direction): array => [
+                static fn (int|string $name, mixed $direction): array => [
                     $name,
                     Direction::from((string) TypeCaster::scalar($direction)),
                 ],
@@ -332,7 +338,7 @@ final readonly class QueryApplier
 
         $relations = $this->definition->relations;
         $query->with(array_map(
-            function (string $name) use ($relations): string {
+            static function (string $name) use ($relations): string {
                 $fields = $relations[$name]->fields;
 
                 return $fields === []

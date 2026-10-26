@@ -47,7 +47,7 @@ final class PaginationRequestTest extends TestCase
     public function testCursorWithCountSortIs422OverHttp(): void
     {
         $this->instance(ConfigurableQuery::class, new ConfigurableQuery(
-            sort: function (SortInterface $sort): void {
+            sort: static function (SortInterface $sort): void {
                 $sort->sort('comments')->count('comments');
             },
         ));
@@ -65,7 +65,7 @@ final class PaginationRequestTest extends TestCase
     {
         parent::defineRoutes($router);
 
-        Route::get('/articles-custom', fn (
+        Route::get('/articles-custom', static fn (
             PaginationQueryRequest $request,
         ): Collection|CursorPaginator|LengthAwarePaginator => (
             new ArticleService()->list($request->parameters())

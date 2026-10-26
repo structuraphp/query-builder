@@ -235,7 +235,7 @@ final class PaginationTest extends TestCase
     {
         $this->seedArticles(3);
         DB::connection()->beforeExecuting(
-            function (string $sql, array $bindings): void {
+            static function (string $sql, array $bindings): void {
                 if (\in_array('abc', $bindings, true)) {
                     throw new QueryException(
                         'testing',
@@ -300,7 +300,9 @@ final class PaginationTest extends TestCase
 
     private function sortable(): ConfigurableQuery
     {
-        return new ConfigurableQuery(sort: function (SortInterface $s): void {
+        return new ConfigurableQuery(sort: static function (
+            SortInterface $s,
+        ): void {
             $s->sort('id');
             $s->sort('status');
         });
@@ -338,7 +340,7 @@ final class PaginationTest extends TestCase
     {
         DB::table('articles')->insert(
             array_map(
-                fn (int $i): array => ['title' => "Article {$i}"],
+                static fn (int $i): array => ['title' => "Article {$i}"],
                 range(1, $count),
             ),
         );

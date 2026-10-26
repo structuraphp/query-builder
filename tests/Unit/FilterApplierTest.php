@@ -106,7 +106,7 @@ final class FilterApplierTest extends TestCase
         array $expected,
     ): void {
         DB::table('articles')->insert(
-            array_map(fn (string $t): array => ['title' => $t], [
+            array_map(static fn (string $t): array => ['title' => $t], [
                 '100%',
                 '100 points',
                 'a_b',
