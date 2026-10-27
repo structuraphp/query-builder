@@ -176,14 +176,15 @@ final class CountTest extends TestCase
      */
     public static function invalidConfigs(): iterable
     {
-        yield 'unknown relation' => [self::counting('tags')];
+        yield 'unknown relation' => [self::counting('ghost')];
 
         yield 'nested relation' => [self::counting('author.profile')];
 
         yield 'declared twice' => [
             static fn (): ConfigurableQuery => new ConfigurableQuery(
                 relation: static function (RelationInterface $r): void {
-                    $r->count('comments')->count('comments');
+                    $r->count('comments');
+                    $r->count('comments');
                 },
             ),
         ];
@@ -199,7 +200,7 @@ final class CountTest extends TestCase
         yield 'sort on an unknown relation' => [
             static fn (): ConfigurableQuery => new ConfigurableQuery(
                 sort: static function (SortInterface $s): void {
-                    $s->sort('tags')->count('tags');
+                    $s->sort('ghost')->count('ghost');
                 },
             ),
         ];

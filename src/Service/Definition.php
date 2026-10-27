@@ -15,6 +15,7 @@ use StructuraPhp\QueryBuilder\Enum\Direction;
 use StructuraPhp\QueryBuilder\Enum\PaginationMode;
 use StructuraPhp\QueryBuilder\Enum\Type;
 use StructuraPhp\QueryBuilder\Exception\ConfigurationException;
+use StructuraPhp\QueryBuilder\ValueObject\Config\CountConfig;
 use StructuraPhp\QueryBuilder\ValueObject\Config\Filter;
 use StructuraPhp\QueryBuilder\ValueObject\Config\FilterConfig;
 use StructuraPhp\QueryBuilder\ValueObject\Config\Pagination;
@@ -61,7 +62,7 @@ final class Definition
     /** @var array<string, RelationConfig> */
     public private(set) array $relations = [];
 
-    /** @var list<string> relations the client may count */
+    /** @var array<string, CountConfig> relations the client may count */
     public private(set) array $counts = [];
 
     private function __construct(
@@ -131,16 +132,16 @@ final class Definition
 
             $definition->assertParents();
 
-            foreach ($relation->counts as $name) {
-                $definition->assertCountable($name);
-                if (\in_array($name, $definition->counts, true)) {
+            foreach ($relation->counts as $config) {
+                $definition->assertCountable($config->name);
+                if (isset($definition->counts[$config->name])) {
                     throw new ConfigurationException(\sprintf(
                         'Count "%s" is declared twice.',
-                        $name,
+                        $config->name,
                     ));
                 }
 
-                $definition->counts[] = $name;
+                $definition->counts[$config->name] = $config;
             }
         }
 

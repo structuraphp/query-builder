@@ -16,5 +16,5 @@ interface RelationInterface
      *
      * @param literal-string $name
      */
-    public function count(string $name): static;
+    public function count(string $name): CountConfigInterface;
 }

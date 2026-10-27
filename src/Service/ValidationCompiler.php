@@ -361,7 +361,10 @@ final readonly class ValidationCompiler
                 'with',
                 array_keys($this->definition->relations),
             ),
-            ...$this->listRules('count', $this->definition->counts),
+            ...$this->listRules(
+                'count',
+                array_keys($this->definition->counts),
+            ),
         ];
     }
 

@@ -319,7 +319,19 @@ final readonly class QueryApplier
     ): void {
         $count = $validated['count'] ?? null;
         $requested = \is_string($count) ? self::relationNames($count) : [];
-        $query->withCount([...$requested, ...$sorted]);
+        $constraints = new RelationConstraints($this->definition);
+
+        $counts = [];
+        foreach ([...$requested, ...$sorted] as $name) {
+            $constraint = $constraints->count($name);
+            if ($constraint instanceof Closure) {
+                $counts[$name] = $constraint;
+            } else {
+                $counts[] = $name;
+            }
+        }
+
+        $query->withCount($counts);
     }
 
     /**
@@ -343,22 +355,26 @@ final readonly class QueryApplier
 
         // Laravel loads the parents of a nested relation without their
         // fields(): name them too, so their columns stay limited.
-        $paths = [];
+        $constraints = new RelationConstraints($this->definition);
+        $loads = [];
         foreach (self::relationNames($with) as $name) {
             $path = null;
             foreach (explode('.', $name) as $segment) {
                 $path = $path === null ? $segment : "{$path}.{$segment}";
-                $paths[$path] = $this->definition->relations[$path]->fields;
+                $loads[$path] = $constraints->eagerLoad($path);
             }
         }
 
-        $query->with(array_map(
-            static fn (string $path, array $fields): string => $fields === []
-                ? $path
-                : $path . ':' . implode(',', $fields),
-            array_keys($paths),
-            $paths,
-        ));
+        $relations = [];
+        foreach ($loads as $path => $load) {
+            if ($load instanceof Closure) {
+                $relations[$path] = $load;
+            } else {
+                $relations[] = $load;
+            }
+        }
+
+        $query->with($relations);
     }
 
     private function column(string $column): string

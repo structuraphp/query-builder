@@ -11,7 +11,10 @@ use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Article extends Model
 {
@@ -31,6 +34,37 @@ class Article extends Model
     public function comments(): HasMany
     {
         return $this->hasMany(Comment::class);
+    }
+
+    /**
+     * @return HasManyThrough<Comment, self, $this>
+     */
+    public function authorComments(): HasManyThrough
+    {
+        return $this->hasManyThrough(
+            Comment::class,
+            self::class,
+            'author_id',
+            'article_id',
+            'author_id',
+            'id',
+        );
+    }
+
+    /**
+     * @return HasOne<Comment, $this>
+     */
+    public function latestComment(): HasOne
+    {
+        return $this->hasOne(Comment::class)->latestOfMany();
+    }
+
+    /**
+     * @return BelongsToMany<Tag, $this>
+     */
+    public function tags(): BelongsToMany
+    {
+        return $this->belongsToMany(Tag::class);
     }
 
     /**
