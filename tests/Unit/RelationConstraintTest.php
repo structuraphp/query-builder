@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\StructuraPhp\QueryBuilder\Unit;
 
+use ArrayObject;
 use Closure;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
@@ -14,6 +15,9 @@ use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Facades\DB;
+use InvalidArgumentException;
+use LogicException;
+use PHPUnit\Framework\Attributes\DataProvider;
 use StructuraPhp\QueryBuilder\Contract\Config\RelationInterface;
 use StructuraPhp\QueryBuilder\Contract\Config\SortInterface;
 use StructuraPhp\QueryBuilder\ValueObject\QueryParameters;
@@ -317,6 +321,319 @@ final class RelationConstraintTest extends TestCase
         self::assertSame(3, $page->total());
     }
 
+    public function testContextReachesTheRelationConstraint(): void
+    {
+        $query = $this->bodyQuery();
+
+        $rows = $this->rows(
+            $query,
+            ['with' => 'comments'],
+            ['with' => ['comments' => ['body' => 'b']]],
+        );
+
+        self::assertSame(
+            ['Foo' => [], 'Bar' => ['b'], 'Baz' => []],
+            $this->bodies($rows),
+        );
+    }
+
+    public function testContextReachesTheCountConstraint(): void
+    {
+        $rows = $this->rows(
+            $this->bodyQuery(),
+            ['count' => 'comments'],
+            ['count' => ['comments' => ['body' => 'c']]],
+        );
+
+        self::assertSame(
+            ['Foo' => 0, 'Bar' => 0, 'Baz' => 1],
+            array_column($rows, 'comments_count', 'title'),
+        );
+    }
+
+    public function testSortedCountUsesTheCountContext(): void
+    {
+        $rows = $this->rows(
+            $this->bodyQuery(),
+            ['sort' => ['comments' => 'desc']],
+            ['count' => ['comments' => ['body' => 'c']]],
+        );
+
+        self::assertSame('Baz', $rows[0]['title']);
+        self::assertSame(
+            ['Baz' => 1, 'Foo' => 0, 'Bar' => 0],
+            array_column($rows, 'comments_count', 'title'),
+        );
+    }
+
+    public function testLoadedAndCountedRelationsGetTheirOwnContext(): void
+    {
+        $rows = $this->rows(
+            $this->bodyQuery(),
+            ['with' => 'comments', 'count' => 'comments'],
+            [
+                'with' => ['comments' => ['body' => 'a']],
+                'count' => ['comments' => ['body' => 'c']],
+            ],
+        );
+
+        self::assertSame(
+            ['Foo' => [], 'Bar' => ['a'], 'Baz' => []],
+            $this->bodies($rows),
+        );
+        self::assertSame(
+            ['Foo' => 0, 'Bar' => 0, 'Baz' => 1],
+            array_column($rows, 'comments_count', 'title'),
+        );
+    }
+
+    public function testSeveralRelationsAndArgumentsGetTheirContext(): void
+    {
+        $query = $this->configure(static function (RelationInterface $r): void {
+            $r->relation('comments')->constrain(
+                static fn (
+                    HasMany $q,
+                    string $skipped = 'zzz',
+                    string $body = 'x',
+                    int $min = 0,
+                ) => $q->getBaseQuery()
+                    ->where('body', $body)
+                    ->where('id', '>=', $min),
+            );
+            $r->relation('authorComments')->constrain(
+                static fn (
+                    HasManyThrough $q,
+                    string $body,
+                ) => $q->getBaseQuery()->where('comments.body', $body),
+            );
+        });
+
+        $rows = $this->rows(
+            $query,
+            ['with' => 'comments,authorComments'],
+            ['with' => [
+                'comments' => ['body' => 'b', 'min' => 3],
+                'authorComments' => ['body' => 'c'],
+            ]],
+        );
+
+        self::assertSame(
+            ['Foo' => [], 'Bar' => [], 'Baz' => []],
+            $this->bodies($rows),
+        );
+        self::assertSame(
+            ['Foo' => ['c'], 'Bar' => [], 'Baz' => ['c']],
+            $this->bodies($rows, 'author_comments'),
+        );
+
+        $rows = $this->rows(
+            $query,
+            ['with' => 'comments,authorComments'],
+            ['with' => [
+                'comments' => ['body' => 'b', 'min' => 2],
+                'authorComments' => ['body' => 'c'],
+            ]],
+        );
+
+        self::assertSame(
+            ['Foo' => [], 'Bar' => ['b'], 'Baz' => []],
+            $this->bodies($rows),
+        );
+    }
+
+    public function testScopeContextIsCheckedNextToConstraintContext(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Scope ghost is not declared.');
+
+        QueryParameters::fromArray($this->bodyQuery(), [])->builder(
+            context: ['with' => [], 'count' => [], 'ghost' => []],
+        );
+    }
+
+    public function testLazyContextIsOnlyCalledWhenNeeded(): void
+    {
+        /** @var ArrayObject<int, int> $calls */
+        $calls = new ArrayObject();
+        $body = static function () use ($calls): string {
+            $calls[] = 1;
+
+            return 'a';
+        };
+        $context = ['with' => ['comments' => ['body' => $body]]];
+
+        $this->rows($this->bodyQuery(), [], $context);
+        self::assertCount(0, $calls);
+
+        $this->rows($this->bodyQuery(), ['with' => 'comments'], $context);
+        self::assertCount(1, $calls);
+    }
+
+    public function testClosureParameterReceivesTheClosureAsIs(): void
+    {
+        $query = $this->configure(static function (RelationInterface $r): void {
+            $r->relation('comments')->constrain(
+                static fn (HasMany $q, Closure $filter) => $filter($q),
+            );
+        });
+        $calls = 0;
+        $filter = static function (HasMany $q) use (&$calls): void {
+            $calls++;
+            $q->getBaseQuery()->where('body', 'a');
+        };
+
+        $rows = $this->rows(
+            $query,
+            ['with' => 'comments'],
+            ['with' => ['comments' => ['filter' => $filter]]],
+        );
+
+        self::assertSame(1, $calls);
+        self::assertSame(
+            ['Foo' => [], 'Bar' => ['a'], 'Baz' => []],
+            $this->bodies($rows),
+        );
+    }
+
+    public function testOptionalParameterFallsBackToItsDefault(): void
+    {
+        $query = $this->configure(static function (RelationInterface $r): void {
+            $r->relation('comments')->constrain(
+                static fn (
+                    HasMany $q,
+                    string $body = 'a',
+                ) => $q->getBaseQuery()->where('body', $body),
+            );
+        });
+
+        $rows = $this->rows($query, ['with' => 'comments']);
+
+        self::assertSame(
+            ['Foo' => [], 'Bar' => ['a'], 'Baz' => []],
+            $this->bodies($rows),
+        );
+    }
+
+    public function testMissingContextThrowsOnlyWhenRequested(): void
+    {
+        $this->rows($this->bodyQuery(), []);
+
+        $this->expectException(LogicException::class);
+        $this->expectExceptionMessage(
+            'Missing context argument body of relation comments.',
+        );
+
+        $this->rows($this->bodyQuery(), ['with' => 'comments']);
+    }
+
+    public function testMissingCountContextNamesTheCount(): void
+    {
+        $this->expectException(LogicException::class);
+        $this->expectExceptionMessage(
+            'Missing context argument body of count comments.',
+        );
+
+        $this->rows($this->bodyQuery(), ['count' => 'comments']);
+    }
+
+    public function testMissingParentContextNamesTheParent(): void
+    {
+        $query = $this->configure(static function (RelationInterface $r): void {
+            $r->relation('author')->constrain(
+                static fn (BelongsTo $q, string $name) => $q->getBaseQuery()
+                    ->where('name', $name),
+            );
+            $r->relation('author.articles');
+        });
+
+        $this->expectException(LogicException::class);
+        $this->expectExceptionMessage(
+            'Missing context argument name of relation author.',
+        );
+
+        $this->rows($query, ['with' => 'author.articles']);
+    }
+
+    /**
+     * @param array<string, array<string, mixed>> $context
+     */
+    #[DataProvider('unknownContextKeys')]
+    public function testUnknownContextKeysThrow(
+        array $context,
+        string $message,
+    ): void {
+        $query = $this->configure(static function (RelationInterface $r): void {
+            $r->relation('comments')->constrain(
+                static fn (
+                    HasMany $q,
+                    string $body,
+                ) => $q->getBaseQuery()->where('body', $body),
+            );
+            $r->relation('tags');
+            $r->relation('authorComments')->constrain(
+                static fn (
+                    HasManyThrough $q,
+                    string ...$rest,
+                ) => $q->getBaseQuery()->where('comments.body', $rest),
+            );
+            $r->count('comments')->constrain(
+                static fn (
+                    Builder $q,
+                    string $body,
+                ) => $q->getQuery()->where('body', $body),
+            );
+        });
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage($message);
+
+        QueryParameters::fromArray($query, [])->builder(context: $context);
+    }
+
+    /**
+     * @return iterable<string, array{
+     *     array<string, array<string, mixed>>,
+     *     string,
+     * }>
+     */
+    public static function unknownContextKeys(): iterable
+    {
+        yield 'undeclared relation' => [
+            ['with' => ['ghost' => []]],
+            'Relation ghost is not declared.',
+        ];
+
+        yield 'undeclared count' => [
+            ['count' => ['ghost' => []]],
+            'Count ghost is not declared.',
+        ];
+
+        yield 'unknown relation argument' => [
+            ['with' => ['comments' => ['body' => 'a', 'ghost' => 1]]],
+            'Relation comments has no context argument ghost.',
+        ];
+
+        yield 'unknown count argument' => [
+            ['count' => ['comments' => ['body' => 'a', 'ghost' => 1]]],
+            'Count comments has no context argument ghost.',
+        ];
+
+        yield 'relation without constraint' => [
+            ['with' => ['tags' => ['body' => 'a']]],
+            'Relation tags has no context argument body.',
+        ];
+
+        yield 'variadic parameter' => [
+            ['with' => ['authorComments' => ['rest' => 'a']]],
+            'Relation authorComments has no context argument rest.',
+        ];
+
+        yield 'first parameter' => [
+            ['with' => ['comments' => ['q' => 1]]],
+            'Relation comments has no context argument q.',
+        ];
+    }
+
     private static function loaded(string $body): Closure
     {
         return static fn (HasMany $q) => $q->getBaseQuery()->where(
@@ -328,6 +645,29 @@ final class RelationConstraintTest extends TestCase
     private static function counted(string $body): Closure
     {
         return static fn (Builder $q) => $q->getQuery()->where('body', $body);
+    }
+
+    private function bodyQuery(): ConfigurableQuery
+    {
+        return $this->configure(
+            static function (RelationInterface $r): void {
+                $r->relation('comments')->constrain(
+                    static fn (
+                        HasMany $q,
+                        string $body,
+                    ) => $q->getBaseQuery()->where('body', $body),
+                );
+                $r->count('comments')->constrain(
+                    static fn (
+                        Builder $q,
+                        string $body,
+                    ) => $q->getQuery()->where('body', $body),
+                );
+            },
+            static function (SortInterface $s): void {
+                $s->sort('comments')->count('comments');
+            },
+        );
     }
 
     private function countQuery(): ConfigurableQuery
@@ -357,14 +697,18 @@ final class RelationConstraintTest extends TestCase
 
     /**
      * @param array<string, mixed> $input
+     * @param array<string, array<string, mixed>> $context
      *
      * @return list<array<string, mixed>>
      */
-    private function rows(ConfigurableQuery $query, array $input): array
-    {
+    private function rows(
+        ConfigurableQuery $query,
+        array $input,
+        array $context = [],
+    ): array {
         /** @var list<array<string, mixed>> */
         return QueryParameters::fromArray($query, $input)
-            ->builder()
+            ->builder(context: $context)
             ->get()
             ->toArray();
     }

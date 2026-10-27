@@ -27,7 +27,10 @@ final readonly class QueryApplier
      * @param array<string, mixed> $input raw request data, only used to
      *                                    detect requested scopes
      * @param array<string, array<string, mixed>> $context scope arguments
-     *                                                     given by the code
+     *                                                     given by the code,
+     *                                                     and under `with`
+     *                                                     and `count` those
+     *                                                     of the constraints
      *
      * @return Builder<Model>
      */
@@ -37,14 +40,15 @@ final readonly class QueryApplier
         array $context = [],
     ): Builder {
         $this->assertContext($context);
+        $constraints = new RelationConstraints($this->definition, $context);
 
         $query = $this->definition->model->newQuery();
 
         $this->applyFilters($query, $validated);
         $this->applyScopes($query, $validated, $input, $context);
         $sorted = $this->applySorts($query, $validated);
-        $this->applyRelations($query, $validated);
-        $this->applyCounts($query, $validated, $sorted);
+        $this->applyRelations($query, $validated, $constraints);
+        $this->applyCounts($query, $validated, $sorted, $constraints);
 
         return $query;
     }
@@ -88,6 +92,11 @@ final readonly class QueryApplier
     private function assertContext(array $context): void
     {
         foreach ($context as $scope => $values) {
+            // Read by RelationConstraints.
+            if ($scope === 'with' || $scope === 'count') {
+                continue;
+            }
+
             $arguments = $this->definition->scopes[$scope][1] ?? null;
             if ($arguments === null) {
                 throw new InvalidArgumentException(
@@ -316,10 +325,10 @@ final readonly class QueryApplier
         Builder $query,
         array $validated,
         array $sorted,
+        RelationConstraints $constraints,
     ): void {
         $count = $validated['count'] ?? null;
         $requested = \is_string($count) ? self::relationNames($count) : [];
-        $constraints = new RelationConstraints($this->definition);
 
         $counts = [];
         foreach ([...$requested, ...$sorted] as $name) {
@@ -346,8 +355,11 @@ final readonly class QueryApplier
      * @param Builder<Model> $query
      * @param array<string, mixed> $validated
      */
-    private function applyRelations(Builder $query, array $validated): void
-    {
+    private function applyRelations(
+        Builder $query,
+        array $validated,
+        RelationConstraints $constraints,
+    ): void {
         $with = $validated['with'] ?? null;
         if (!\is_string($with)) {
             return;
@@ -355,7 +367,6 @@ final readonly class QueryApplier
 
         // Laravel loads the parents of a nested relation without their
         // fields(): name them too, so their columns stay limited.
-        $constraints = new RelationConstraints($this->definition);
         $loads = [];
         foreach (self::relationNames($with) as $name) {
             $path = null;

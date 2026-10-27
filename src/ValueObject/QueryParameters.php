@@ -70,7 +70,13 @@ final readonly class QueryParameters
      * @param array<string, array<string, mixed>> $context scope arguments
      *                                                     declared with
      *                                                     context(), by
-     *                                                     scope name
+     *                                                     scope name; the
+     *                                                     `with` and `count`
+     *                                                     keys hold the
+     *                                                     arguments of the
+     *                                                     relation and count
+     *                                                     constraints, by
+     *                                                     name
      *
      * @return Builder<Model>
      */
