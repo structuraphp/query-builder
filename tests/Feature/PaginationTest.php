@@ -205,7 +205,8 @@ final class PaginationTest extends TestCase
         $response->assertOk();
         self::assertSame([3, 2, 1], self::column($response, 'id'));
         self::assertStringEndsWith(
-            'order by "articles"."id" desc limit 51',
+            'order by ' . DB::getQueryGrammar()->wrap('articles.id')
+            . ' desc limit 51',
             $this->lastQuery(),
         );
     }

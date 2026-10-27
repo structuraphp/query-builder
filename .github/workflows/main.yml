@@ -16,13 +16,107 @@ env:
   LATEST_PHP_VERSION: '8.5'
 
 jobs:
-  ci:
-    name: Tests PHP ${{ matrix.php-version }}
+  quality:
+    name: Quality
     runs-on: ubuntu-latest
+
+    steps:
+      - name: Pull repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@accd6127cb78bee3e8082180cb391013d204ef9f # v2.37.0
+        with:
+          php-version: ${{ env.LATEST_PHP_VERSION }}
+          tools: composer
+          extensions: pdo_sqlite
+          coverage: pcov
+
+      - name: Validate composer.json and composer.lock
+        run: composer validate --strict
+
+      - name: Cache Composer packages
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+        with:
+          path: vendor
+          key: ${{ runner.os }}-php-${{ env.LATEST_PHP_VERSION }}-${{ hashFiles('**/composer.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-php-${{ env.LATEST_PHP_VERSION }}-
+
+      - name: Install dependencies with Composer
+        run: composer install -q --no-ansi --no-interaction --no-scripts --no-progress --prefer-dist
+
+      - name: Security audit
+        run: composer audit
+
+      - name: PSR-4 autoloading
+        run: composer dump-autoload --optimize --strict-psr --no-scripts
+
+      - name: Dependencies tests
+        run: vendor/bin/composer-dependency-analyser
+
+      - name: Coding standards
+        run: vendor/bin/php-cs-fixer fix --ansi --dry-run --using-cache=no -v --diff
+
+      - name: Line length
+        run: make line-length
+
+      - name: No PHPStan baseline
+        run: |
+          if [ -f phpstan-baseline.neon ]; then
+            echo "::error::phpstan-baseline.neon forbidden: fix the errors instead of hiding them"
+            exit 1
+          fi
+
+      - name: Static analysis
+        run: vendor/bin/phpstan --memory-limit=1G analyse --error-format=github
+
+      - name: PHPStan rules smoke test
+        run: make phpstan-smoke
+
+      - name: Refactoring
+        run: vendor/bin/rector process --dry-run
+
+      - name: Mutation testing
+        run: vendor/bin/infection --threads=max --show-mutations --no-progress
+
+  tests:
+    name: Tests PHP ${{ matrix.php-version }} ${{ matrix.database }}
+    runs-on: ubuntu-latest
+    # PHP 8.6 is not released yet: its failures do not block the release.
+    continue-on-error: ${{ matrix.php-version == '8.6' }}
     strategy:
       fail-fast: false
       matrix:
-        php-version: ['8.4', '8.5']
+        php-version: ['8.4', '8.5', '8.6']
+        database: [sqlite, mysql, pgsql]
+
+    # An empty image does not start the service.
+    services:
+      mysql:
+        image: ${{ matrix.database == 'mysql' && 'mysql:8.4' || '' }}
+        env:
+          MYSQL_ROOT_PASSWORD: password
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -ppassword"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+      postgres:
+        image: ${{ matrix.database == 'pgsql' && 'postgres:18' || '' }}
+        env:
+          POSTGRES_PASSWORD: password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd=pg_isready
+          --health-interval=5s --health-timeout=5s --health-retries=20
+
+    env:
+      DB_CONNECTION: ${{ matrix.database }}
+      DB_HOST: 127.0.0.1
+      DB_USERNAME: ${{ matrix.database == 'pgsql' && 'postgres' || 'root' }}
+      DB_PASSWORD: password
 
     steps:
       - name: Pull repository
@@ -33,11 +127,8 @@ jobs:
         with:
           php-version: ${{ matrix.php-version }}
           tools: composer
-          extensions: pdo_sqlite
-          coverage: pcov
-
-      - name: Validate composer.json and composer.lock
-        run: composer validate --strict
+          extensions: pdo_sqlite, pdo_mysql, pdo_pgsql
+          coverage: none
 
       - name: Cache Composer packages
         uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
@@ -50,56 +141,12 @@ jobs:
       - name: Install dependencies with Composer
         run: composer install -q --no-ansi --no-interaction --no-scripts --no-progress --prefer-dist
 
-      - name: Security audit
-        if: matrix.php-version == env.LATEST_PHP_VERSION
-        run: composer audit
-
-      - name: PSR-4 autoloading
-        if: matrix.php-version == env.LATEST_PHP_VERSION
-        run: composer dump-autoload --optimize --strict-psr --no-scripts
-
-      - name: Dependencies tests
-        if: matrix.php-version == env.LATEST_PHP_VERSION
-        run: vendor/bin/composer-dependency-analyser
-
-      - name: Coding standards
-        if: matrix.php-version == env.LATEST_PHP_VERSION
-        run: vendor/bin/php-cs-fixer fix --ansi --dry-run --using-cache=no -v --diff
-
-      - name: Line length
-        if: matrix.php-version == env.LATEST_PHP_VERSION
-        run: make line-length
-
-      - name: No PHPStan baseline
-        if: matrix.php-version == env.LATEST_PHP_VERSION
-        run: |
-          if [ -f phpstan-baseline.neon ]; then
-            echo "::error::phpstan-baseline.neon forbidden: fix the errors instead of hiding them"
-            exit 1
-          fi
-
-      - name: Static analysis
-        if: matrix.php-version == env.LATEST_PHP_VERSION
-        run: vendor/bin/phpstan --memory-limit=1G analyse --error-format=github
-
-      - name: PHPStan rules smoke test
-        if: matrix.php-version == env.LATEST_PHP_VERSION
-        run: make phpstan-smoke
-
-      - name: Refactoring
-        if: matrix.php-version == env.LATEST_PHP_VERSION
-        run: vendor/bin/rector process --dry-run
-
       - name: Unit tests
-        run: vendor/bin/phpunit --testdox --random-order
-
-      - name: Mutation testing
-        if: matrix.php-version == env.LATEST_PHP_VERSION
-        run: vendor/bin/infection --threads=max --show-mutations --no-progress
+        run: vendor/bin/paratest --order-by=random
 
   release:
     name: Release
-    needs: ci
+    needs: [quality, tests]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:

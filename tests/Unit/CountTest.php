@@ -88,7 +88,7 @@ final class CountTest extends TestCase
 
         $sql = $parameters->builder()->getQuery()->toSql();
 
-        self::assertSame(1, substr_count($sql, 'as "comments_count"'));
+        self::assertSame(1, substr_count($sql, $this->countAlias()));
     }
 
     /**
@@ -103,7 +103,7 @@ final class CountTest extends TestCase
 
         $sql = $parameters->builder()->getQuery()->toSql();
 
-        self::assertSame(1, substr_count($sql, 'as "comments_count"'));
+        self::assertSame(1, substr_count($sql, $this->countAlias()));
     }
 
     public function testSortBySeveralCounts(): void
@@ -234,6 +234,14 @@ final class CountTest extends TestCase
                 $r->count($name);
             },
         );
+    }
+
+    /**
+     * Quoted by the engine: `"comments_count"`, or backticks on MySQL.
+     */
+    private function countAlias(): string
+    {
+        return 'as ' . DB::getQueryGrammar()->wrap('comments_count');
     }
 
     private static function defaultCountSort(SortInterface $sort): void

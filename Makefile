@@ -133,9 +133,9 @@ psr4: ## Check that namespaces follow PSR-4
 #   \_/\___||___/\__|
 
 .PHONY: test
-test: ## Run the tests [usage: make test args="--filter=TestName --stop-on-failure"]
-	$(call printSection,TEST phpunit)
-	${BIN_DIR}/phpunit $(args)
+test: ## Run the tests in parallel [usage: make test args="--filter=TestName"]
+	$(call printSection,TEST paratest)
+	${BIN_DIR}/paratest $(args)
 
 .PHONY: coverage
 coverage: ## Run tests with coverage summary (pcov)

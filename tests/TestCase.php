@@ -6,7 +6,10 @@ namespace Tests\StructuraPhp\QueryBuilder;
 
 use Illuminate\Contracts\Config\Repository;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Http\Middleware\HandlePrecognitiveRequests;
+use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Testing\TestResponse;
@@ -18,9 +21,20 @@ use Tests\StructuraPhp\QueryBuilder\Fixtures\TestQueryRequest;
 
 abstract class TestCase extends BaseTestCase
 {
+    private static bool $databaseCreated = false;
+
     protected function setUp(): void
     {
         parent::setUp();
+
+        if (!self::$databaseCreated) {
+            self::$databaseCreated = true;
+            $this->recreateDatabase();
+        }
+
+        // A connection left open per test exhausts the MySQL server.
+        $this->beforeApplicationDestroyed(static fn () => DB::disconnect());
+        Schema::dropAllTables();
 
         Schema::create('authors', static function (Blueprint $table): void {
             $table->id();
@@ -48,9 +62,29 @@ abstract class TestCase extends BaseTestCase
         });
     }
 
+    /**
+     * `DB_CONNECTION=mysql` or `pgsql` runs the tests on that engine, with
+     * the `DB_*` settings of Laravel. Each paratest process gets its own
+     * database.
+     *
+     * @param Application $app
+     */
     protected function defineEnvironment($app): void
     {
         $config = $app->make(Repository::class);
+        $driver = getenv('DB_CONNECTION');
+
+        if ($driver === 'mysql' || $driver === 'pgsql') {
+            $token = getenv('TEST_TOKEN');
+            $config->set('database.default', $driver);
+            $config->set(
+                "database.connections.{$driver}.database",
+                'query_builder_' . ($token === false ? '0' : $token),
+            );
+
+            return;
+        }
+
         $config->set('database.default', 'testing');
         $config->set('database.connections.testing', [
             'driver' => 'sqlite',
@@ -145,5 +179,30 @@ abstract class TestCase extends BaseTestCase
         } while ($cursor !== null);
 
         return $ids;
+    }
+
+    /**
+     * Drops and creates the MySQL or PostgreSQL database, connected to a
+     * database every server has, so a run never sees the tables of the
+     * previous one.
+     */
+    private function recreateDatabase(): void
+    {
+        $driver = DB::getDriverName();
+        if ($driver === 'sqlite') {
+            return;
+        }
+
+        $database = DB::getDatabaseName();
+        $config = Config::array("database.connections.{$driver}");
+        $config['database'] = $driver === 'pgsql'
+            ? 'postgres'
+            : 'information_schema';
+        Config::set('database.connections.server', $config);
+
+        $schema = Schema::connection('server');
+        $schema->dropDatabaseIfExists($database);
+        $schema->createDatabase($database);
+        DB::purge('server');
     }
 }

@@ -199,11 +199,12 @@ final class FilterApplierTest extends TestCase
         );
         $base = $query->getQuery();
 
-        self::assertSame(
-            'select * from "articles" '
-            . 'where "created_at" >= ? and "created_at" < ?',
-            $base->toSql(),
-        );
+        $plain = Article::query()
+            ->where('created_at', '>=', '2024-01-02')
+            ->where('created_at', '<', '2024-01-03')
+            ->getQuery();
+
+        self::assertSame($plain->toSql(), $base->toSql());
         self::assertSame(['2024-01-02', '2024-01-03'], $base->getBindings());
     }
 
@@ -254,10 +255,11 @@ final class FilterApplierTest extends TestCase
         );
         $base = $query->getQuery();
 
-        self::assertSame(
-            'select * from "articles" where "published_at" = ?',
-            $base->toSql(),
-        );
+        $plain = Article::query()
+            ->where('published_at', '2024-01-02')
+            ->getQuery();
+
+        self::assertSame($plain->toSql(), $base->toSql());
         self::assertSame(['2024-01-02'], $base->getBindings());
     }
 }
