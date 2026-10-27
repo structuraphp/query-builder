@@ -49,7 +49,8 @@ final readonly class QuerySnapshot
 
     /**
      * The string an argument holds (a name, a class), given by position or
-     * by name; null when it is absent or has no single known value.
+     * by name; null when it is absent, has no single known value or is not
+     * a string.
      *
      * @param Call $call
      */
@@ -58,9 +59,55 @@ final readonly class QuerySnapshot
         int $position,
         string $name,
     ): ?string {
-        $arg = $call['args'][$position] ?? $call['args'][$name] ?? [];
-        $value = $arg['value'] ?? null;
+        $value = self::value($call, $position, $name, ['string', 'class']);
 
         return \is_string($value) ? $value : null;
+    }
+
+    /**
+     * @param Call $call
+     */
+    public static function int(
+        array $call,
+        int $position,
+        string $name,
+    ): ?int {
+        $value = self::value($call, $position, $name, ['int']);
+
+        return \is_int($value) ? $value : null;
+    }
+
+    /**
+     * The `Class::Case` of an enum case argument.
+     *
+     * @param Call $call
+     */
+    public static function case(
+        array $call,
+        int $position,
+        string $name,
+    ): ?string {
+        $value = self::value($call, $position, $name, ['case']);
+
+        return \is_string($value) ? $value : null;
+    }
+
+    /**
+     * @param Call $call
+     * @param list<string> $kinds
+     *
+     * @return null|int|list<string>|string
+     */
+    private static function value(
+        array $call,
+        int $position,
+        string $name,
+        array $kinds,
+    ): array|int|string|null {
+        $arg = $call['args'][$position] ?? $call['args'][$name] ?? [];
+
+        return \in_array($arg['kind'] ?? null, $kinds, true)
+            ? $arg['value'] ?? null
+            : null;
     }
 }

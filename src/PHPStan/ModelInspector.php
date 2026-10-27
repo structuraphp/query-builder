@@ -93,6 +93,11 @@ final readonly class ModelInspector
         return null;
     }
 
+    public function name(): string
+    {
+        return $this->model->getName();
+    }
+
     /**
      * Like at runtime, any method of the model: pass the root of a nested
      * relation.

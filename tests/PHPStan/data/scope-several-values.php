@@ -26,10 +26,10 @@ final class SeveralValuesQuery implements FromModel, WithScope
         $scope->scope($this->flag ? 'missing' : 'lost');
         $scope->scope($this->name);
         $scope->scope('popular')->method($this->flag ? 'nope' : 'lost');
-        $scope->scope('missing')
+        $scope->scope('second')
             ->method($this->flag ? 'popular' : 'minViews');
-        $scope->scope('missing')->method('popular')->method($this->name);
+        $scope->scope('third')->method('popular')->method($this->name);
         $scope->scope(name: 'gone');
-        $scope->scope('popular')->method(method: 'away');
+        $scope->scope('fourth')->method(method: 'away');
     }
 }

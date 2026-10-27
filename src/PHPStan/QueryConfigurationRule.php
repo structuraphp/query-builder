@@ -95,7 +95,7 @@ final readonly class QueryConfigurationRule implements Rule
             }
         }
 
-        return $errors;
+        return [...$errors, ...ConfigurationChecker::check($snapshot, $model)];
     }
 
     /**

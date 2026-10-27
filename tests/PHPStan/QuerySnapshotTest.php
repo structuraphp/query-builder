@@ -122,6 +122,35 @@ final class QuerySnapshotTest extends RuleTestCase
         self::assertNull(QuerySnapshot::string($call, 1, 'other'));
     }
 
+    public function testArgumentsAreReadByKind(): void
+    {
+        $call = [
+            'method' => 'limit',
+            'file' => self::FILE,
+            'line' => 1,
+            'args' => [
+                0 => ['kind' => 'int', 'value' => 5],
+                1 => ['kind' => 'string', 'value' => 'text'],
+                2 => ['kind' => 'class', 'value' => 'Some\Name'],
+                3 => ['kind' => 'case', 'value' => 'A::B'],
+                'mode' => ['kind' => 'case', 'value' => 'C::D'],
+                'size' => ['kind' => 'int', 'value' => 7],
+            ],
+        ];
+
+        self::assertSame(5, QuerySnapshot::int($call, 0, 'size'));
+        self::assertSame(7, QuerySnapshot::int($call, 9, 'size'));
+        self::assertNull(QuerySnapshot::int($call, 1, 'x'));
+        self::assertSame('text', QuerySnapshot::string($call, 1, 'x'));
+        self::assertSame('Some\Name', QuerySnapshot::string($call, 2, 'x'));
+        self::assertNull(QuerySnapshot::string($call, 0, 'x'));
+        self::assertNull(QuerySnapshot::string($call, 3, 'x'));
+        self::assertSame('A::B', QuerySnapshot::case($call, 3, 'x'));
+        self::assertSame('C::D', QuerySnapshot::case($call, 9, 'mode'));
+        self::assertNull(QuerySnapshot::case($call, 1, 'x'));
+        self::assertNull(QuerySnapshot::case($call, 9, 'x'));
+    }
+
     protected function getRule(): Rule
     {
         $reflection = $this->createReflectionProvider();
