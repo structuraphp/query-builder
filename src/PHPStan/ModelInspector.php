@@ -71,6 +71,14 @@ final readonly class ModelInspector
     }
 
     /**
+     * The class of the model's Eloquent builder, null when it is unknown.
+     */
+    public function builderClass(): ?string
+    {
+        return $this->builder?->getName();
+    }
+
+    /**
      * Like at runtime, a method of the builder wins over a model scope.
      */
     public function findScope(string $name): ?ScopeSignature

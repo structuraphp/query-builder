@@ -1,4 +1,5 @@
 rules:
+    - StructuraPhp\QueryBuilder\PHPStan\ConstraintClosureRule
     - StructuraPhp\QueryBuilder\PHPStan\FlatConfigurationRule
     - StructuraPhp\QueryBuilder\PHPStan\QueryConfigurationRule
 
@@ -9,3 +10,8 @@ services:
     -
         class: StructuraPhp\QueryBuilder\PHPStan\ConfigurationCollector
         tags: [phpstan.collector]
+    -
+        class: StructuraPhp\QueryBuilder\PHPStan\ConstraintClosureTypeExtension
+        arguments:
+            parser: @defaultAnalysisParser
+        tags: [phpstan.methodParameterClosureTypeExtension]

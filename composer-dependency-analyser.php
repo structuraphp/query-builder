@@ -18,4 +18,6 @@ return (new Configuration())
         [ErrorType::SHADOW_DEPENDENCY],
     )
     // Class names in another case, which the autoloader cannot find.
-    ->ignoreUnknownClasses(['carbon\\CARBONimmutable', 'CARBON\\carbon']);
+    ->ignoreUnknownClasses(['carbon\\CARBONimmutable', 'CARBON\\carbon'])
+    // Declared by the PHPStan phar when it runs the type inference tests.
+    ->ignoreUnknownFunctions(['PHPStan\\Testing\\assertType']);
