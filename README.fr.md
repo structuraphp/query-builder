@@ -164,6 +164,12 @@ validation qu'elles produisent : [filtres](docs/filters.fr.md),
 [pagination](docs/pagination.fr.md). Les [règles PHPStan](docs/phpstan.fr.md)
 signalent les erreurs de configuration en CI.
 
+## 🤖 Agents IA
+
+Avec [Laravel Boost](https://laravel.com/docs/13.x/boost),
+`php artisan boost:install` donne à vos agents IA les consignes et la skill
+`structura-query-builder` de la librairie.
+
 ## Licence
 
 Query Builder est un logiciel libre sous [licence MIT](LICENSE).

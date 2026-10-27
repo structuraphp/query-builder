@@ -159,6 +159,12 @@ configuration, example URLs, and the SQL or validation error they produce:
 [relations](docs/relations.md) and [pagination](docs/pagination.md).
 The [PHPStan rules](docs/phpstan.md) report configuration errors in CI.
 
+## 🤖 AI agents
+
+With [Laravel Boost](https://laravel.com/docs/13.x/boost),
+`php artisan boost:install` gives your AI agents the library's guidelines and
+its `structura-query-builder` skill.
+
 ## License
 
 Query Builder is open-source software licensed under the
