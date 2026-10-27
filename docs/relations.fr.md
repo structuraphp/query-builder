@@ -130,7 +130,8 @@ WHERE products.category_id IN (1, 2) AND state = 'active'
 - `fields()` s'applique après la condition. Sur un `BelongsToMany`, une
   relation `…Through` ou une relation « one of many », ses colonnes sont
   préfixées par la table liée (`products.id`), comme Laravel le fait pour
-  `with('products:id')`.
+  `with('products:id')`. Elle remplace un `select()` ou un `withCount()`
+  fait dans la condition.
 - Une relation imbriquée a sa propre condition : `?with=author.profile`
   applique la condition d'`author`, puis celle d'`author.profile`.
 - Un nouvel appel à `constrain()` sur la même relation remplace la

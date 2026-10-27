@@ -114,6 +114,7 @@ WHERE products.category_id IN (1, 2) AND state = 'active'
 - `fields()` applies after the condition. On a `BelongsToMany`, a
   `…Through` or a one-of-many relation, its columns are prefixed with the
   related table (`products.id`), as Laravel does for `with('products:id')`.
+  It replaces a `select()` or `withCount()` made in the condition.
 - A nested relation has its own condition: `?with=author.profile` runs the
   condition of `author`, then the one of `author.profile`.
 - Calling `constrain()` again on the same relation replaces the condition,

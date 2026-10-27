@@ -98,7 +98,8 @@ final readonly class RelationConstraints
                 );
             }
 
-            $relation->getBaseQuery()->select($fields);
+            // MorphTo replays what goes through __call() on each morphed type.
+            $relation->__call('select', [$fields]);
         };
     }
 

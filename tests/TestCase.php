@@ -59,6 +59,7 @@ abstract class TestCase extends BaseTestCase
             $table->id();
             $table->foreignId('article_id');
             $table->string('body');
+            $table->nullableMorphs('subject');
         });
     }
 

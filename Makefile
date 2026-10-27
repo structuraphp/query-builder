@@ -99,11 +99,14 @@ phpstan-smoke: ## Run the rules on a sample project, without then with Larastan
 			${BIN_DIR}/phpstan analyse --no-progress --error-format=raw -vv \
 				-c ${SMOKE_DIR}/phpstan$$suffix.neon \
 				> $$out.out 2> $$out.err; \
-			! grep -q 'Internal error' $$out.out $$out.err \
+			code=$$?; \
+			test $$code -eq 1 \
+			&& ! grep -q 'Internal error' $$out.out $$out.err \
 			&& sed 's|^${SOURCE_DIR}/||' $$out.out \
 				| diff ${SMOKE_DIR}/expected$$suffix.txt - \
 			|| { cat $$out.err >&2; \
-				echo "phpstan$$suffix.neon, $$run run: unexpected result" >&2; \
+				echo "phpstan$$suffix.neon, $$run run: unexpected result \
+(exit code $$code)" >&2; \
 				exit 1; }; \
 		done; \
 		grep -q 'Result cache restored' $$out.err \

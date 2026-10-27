@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
@@ -22,6 +23,7 @@ use StructuraPhp\QueryBuilder\Contract\Config\RelationInterface;
 use StructuraPhp\QueryBuilder\Contract\Config\SortInterface;
 use StructuraPhp\QueryBuilder\ValueObject\QueryParameters;
 use Tests\StructuraPhp\QueryBuilder\Fixtures\Article;
+use Tests\StructuraPhp\QueryBuilder\Fixtures\Comment;
 use Tests\StructuraPhp\QueryBuilder\Fixtures\Queries\ConfigurableQuery;
 use Tests\StructuraPhp\QueryBuilder\TestCase;
 
@@ -167,6 +169,29 @@ final class RelationConstraintTest extends TestCase
         self::assertSame(
             ['id', 'body'],
             $relation->getQuery()->getQuery()->columns,
+        );
+    }
+
+    public function testMorphToFieldsApplyAfterTheConstraint(): void
+    {
+        DB::table('comments')->where('body', 'a')->update([
+            'subject_type' => Article::class,
+            'subject_id' => 1,
+        ]);
+        $query = new ConfigurableQuery(
+            relation: static function (RelationInterface $r): void {
+                $r->relation('subject')
+                    ->fields(['id', 'title'])
+                    ->constrain(static fn (MorphTo $q): MorphTo => $q);
+            },
+            model: Comment::class,
+        );
+
+        $rows = $this->rows($query, ['with' => 'subject']);
+
+        self::assertSame(
+            ['a' => ['id' => 1, 'title' => 'Foo'], 'b' => null, 'c' => null],
+            array_column($rows, 'subject', 'body'),
         );
     }
 
@@ -466,6 +491,52 @@ final class RelationConstraintTest extends TestCase
         self::assertCount(0, $calls);
 
         $this->rows($this->bodyQuery(), ['with' => 'comments'], $context);
+        self::assertCount(1, $calls);
+    }
+
+    public function testLazyContextOfASharedParentIsCalledOnce(): void
+    {
+        /** @var ArrayObject<int, int> $calls */
+        $calls = new ArrayObject();
+        $name = static function () use ($calls): string {
+            $calls[] = 1;
+
+            return 'Ada';
+        };
+        $query = $this->configure(static function (RelationInterface $r): void {
+            $r->relation('author')->constrain(
+                static fn (BelongsTo $q, string $name) => $q->getBaseQuery()
+                    ->where('name', $name),
+            );
+            $r->relation('author.articles');
+            $r->relation('author.articles.comments');
+        });
+
+        $this->rows(
+            $query,
+            ['with' => 'author.articles,author.articles.comments'],
+            ['with' => ['author' => ['name' => $name]]],
+        );
+
+        self::assertCount(1, $calls);
+    }
+
+    public function testLazyContextOfASortedCountIsCalledOnce(): void
+    {
+        /** @var ArrayObject<int, int> $calls */
+        $calls = new ArrayObject();
+        $body = static function () use ($calls): string {
+            $calls[] = 1;
+
+            return 'c';
+        };
+
+        $this->rows(
+            $this->bodyQuery(),
+            ['count' => 'comments', 'sort' => ['comments' => 'desc']],
+            ['count' => ['comments' => ['body' => $body]]],
+        );
+
         self::assertCount(1, $calls);
     }
 

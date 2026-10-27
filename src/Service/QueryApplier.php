@@ -60,13 +60,9 @@ final readonly class QueryApplier
     {
         $names = array_map(trim(...), explode(',', $with));
 
-        // Laravel nests a closure per repeated relation: thousands of
-        // repeats overflow the stack.
-        return array_unique(
-            array_filter(
-                $names,
-                static fn (string $name): bool => $name !== '',
-            ),
+        return array_filter(
+            $names,
+            static fn (string $name): bool => $name !== '',
         );
     }
 
@@ -314,8 +310,7 @@ final readonly class QueryApplier
     }
 
     /**
-     * Requested counts and those a sort needs: withCount() counts a
-     * relation named twice once.
+     * Requested counts and those a sort needs, each once.
      *
      * @param Builder<Model> $query
      * @param array<string, mixed> $validated
@@ -330,8 +325,10 @@ final readonly class QueryApplier
         $count = $validated['count'] ?? null;
         $requested = \is_string($count) ? self::relationNames($count) : [];
 
+        // Laravel nests a closure per repeated relation: thousands of
+        // repeats overflow the stack.
         $counts = [];
-        foreach ([...$requested, ...$sorted] as $name) {
+        foreach (array_unique([...$requested, ...$sorted]) as $name) {
             $constraint = $constraints->count($name);
             if ($constraint instanceof Closure) {
                 $counts[$name] = $constraint;
@@ -372,7 +369,7 @@ final readonly class QueryApplier
             $path = null;
             foreach (explode('.', $name) as $segment) {
                 $path = $path === null ? $segment : "{$path}.{$segment}";
-                $loads[$path] = $constraints->eagerLoad($path);
+                $loads[$path] ??= $constraints->eagerLoad($path);
             }
         }
 

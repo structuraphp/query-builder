@@ -222,8 +222,9 @@ $query = $parameters->builder(context: [
   needed; an undeclared relation or count, or an unknown parameter name,
   throws an `InvalidArgumentException` at every `builder()`.
 - Type the first parameter with the declared relation type (`HasMany`,
-  `HasMany<Product, Category>`, `Relation`) or the builder
-  (`ProductBuilder`, `Builder`), or leave it untyped: PHPStan types it when
+  `Relation`) or the builder (`ProductBuilder`, `Builder`), or leave it
+  untyped; generics like `HasMany<Product, Category>` go in a `@param`
+  PHPDoc, not the native type. PHPStan types the parameter when
   the query class is `final`, `getModel()` returns `X::class` and the
   relation method declares its generics (`@return HasMany<Product, $this>`),
   and reports an incompatible native type as `argument.type`.
