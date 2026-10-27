@@ -152,15 +152,12 @@ final readonly class ConstraintClosureTypeExtension implements TypeExtension
         $declaring = $query->getNativeMethod('getModel')
             ->getDeclaringClass();
 
-        $file = $declaring->getFileName() ?? '';
         // Read without PHPStan: a change of its body is not seen otherwise.
-        if ($scope instanceof DependencyTracker) {
-            $scope->trackFileDependency($file);
-        }
+        $this->track($scope, $declaring->getName());
 
         /** @var null|Class_ $class */
         $class = new NodeFinder()->findFirst(
-            $this->parser->parseFile($file),
+            $this->parser->parseFile($declaring->getFileName() ?? ''),
             static fn (Node $node): bool => $node instanceof Class_
                 && (string) $node->namespacedName === $declaring->getName(),
         );
@@ -272,12 +269,26 @@ final readonly class ConstraintClosureTypeExtension implements TypeExtension
     }
 
     /**
-     * Tells the result cache, from PHPStan 2.3 which has DependencyTracker.
+     * Tells the result cache, from PHPStan 2.3 which has DependencyTracker,
+     * the files of the class and its ancestors. Not the class: restoring a
+     * class dependency runs the stub files extensions before the bootstrap
+     * files, and Larastan's crashes (undefined LARAVEL_VERSION).
      */
     private function track(Scope $scope, string $class): void
     {
-        if ($scope instanceof DependencyTracker) {
-            $scope->trackClassDependency($class);
+        if (!$scope instanceof DependencyTracker) {
+            return;
+        }
+
+        $ancestors = $this->reflection->getClass($class)->getAncestors();
+
+        foreach ($ancestors as $declaring) {
+            // A built-in one has no file, or only a PHPStan stub.
+            $file = $declaring->isBuiltin() ? null : $declaring->getFileName();
+
+            if ($file !== null) {
+                $scope->trackFileDependency($file);
+            }
         }
     }
 }

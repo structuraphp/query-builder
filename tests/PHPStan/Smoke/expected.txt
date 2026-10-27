@@ -1,1 +1,2 @@
+tests/PHPStan/Smoke/BrokenConstraintQuery.php:21:Parameter $query of the constrain() closure expects Tests\StructuraPhp\QueryBuilder\PHPStan\Smoke\Comment, Illuminate\Database\Eloquent\Relations\HasMany<Tests\StructuraPhp\QueryBuilder\PHPStan\Smoke\Comment, Tests\StructuraPhp\QueryBuilder\PHPStan\Smoke\Category> given. [identifier=argument.type]
 tests/PHPStan/Smoke/BrokenPostQuery.php:20:Scope "ghost" does not exist on Tests\StructuraPhp\QueryBuilder\PHPStan\Smoke\Post. [identifier=structuraQueryBuilder.scopeNotFound]

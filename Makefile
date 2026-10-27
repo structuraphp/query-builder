@@ -89,24 +89,28 @@ phpstan: ## Run static analysis (PHPStan)
 	${BIN_DIR}/phpstan --memory-limit=1G analyse
 
 .PHONY: phpstan-smoke
-phpstan-smoke: ## Run the rules on a sample project: fresh, then from cache
+phpstan-smoke: ## Run the rules on a sample project, without then with Larastan
 	$(call printSection,PHPSTAN SMOKE)
-	rm -rf .cache/phpstan-smoke
+	rm -rf .cache/phpstan-smoke .cache/phpstan-smoke-larastan
 	@mkdir -p .cache
-	@for run in fresh cached; do \
-		${BIN_DIR}/phpstan analyse --no-progress --error-format=raw -vv \
-			-c ${SMOKE_DIR}/phpstan.neon \
-			> .cache/phpstan-smoke.out 2> .cache/phpstan-smoke.err; \
-		! grep -q 'Internal error' .cache/phpstan-smoke.out \
-			.cache/phpstan-smoke.err \
-		&& sed 's|^${SOURCE_DIR}/||' .cache/phpstan-smoke.out \
-			| diff ${SMOKE_DIR}/expected.txt - \
-		|| { cat .cache/phpstan-smoke.err >&2; \
-			echo "$$run run: unexpected result" >&2; exit 1; }; \
+	@for suffix in '' -larastan; do \
+		out=.cache/phpstan-smoke$$suffix; \
+		for run in fresh cached; do \
+			${BIN_DIR}/phpstan analyse --no-progress --error-format=raw -vv \
+				-c ${SMOKE_DIR}/phpstan$$suffix.neon \
+				> $$out.out 2> $$out.err; \
+			! grep -q 'Internal error' $$out.out $$out.err \
+			&& sed 's|^${SOURCE_DIR}/||' $$out.out \
+				| diff ${SMOKE_DIR}/expected$$suffix.txt - \
+			|| { cat $$out.err >&2; \
+				echo "phpstan$$suffix.neon, $$run run: unexpected result" >&2; \
+				exit 1; }; \
+		done; \
+		grep -q 'Result cache restored' $$out.err \
+			|| { echo "phpstan$$suffix.neon: the second run did not use \
+the result cache" >&2; exit 1; }; \
 	done
-	@grep -q 'Result cache restored' .cache/phpstan-smoke.err \
-		|| { echo 'The second run did not use the result cache' >&2; exit 1; }
-	@echo 'Both runs report exactly the expected errors.'
+	@echo 'Each configuration reports exactly the expected errors, twice.'
 
 .PHONY: dependency
 dependency: ## Check for unused or missing composer dependencies

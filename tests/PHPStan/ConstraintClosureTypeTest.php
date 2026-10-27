@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\StructuraPhp\QueryBuilder\PHPStan;
 
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Override;
 use PhpParser\Node;
 use PhpParser\Node\Expr\MethodCall;
@@ -16,8 +17,9 @@ use PHPStan\Type\ClosureType;
 use PHPStan\Type\VerbosityLevel;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\MockObject\Stub;
+use ReflectionClass;
+use StructuraPhp\QueryBuilder\Contract\Query\FromModel;
 use StructuraPhp\QueryBuilder\PHPStan\ConstraintClosureTypeExtension;
-use Tests\StructuraPhp\QueryBuilder\PHPStan\Data\Category;
 use Tests\StructuraPhp\QueryBuilder\PHPStan\Data\ParametersQuery;
 use Tests\StructuraPhp\QueryBuilder\PHPStan\Data\Tag;
 
@@ -81,22 +83,23 @@ final class ConstraintClosureTypeTest extends TypeInferenceTestCase
         ]);
         $this->delegate($scope, $real);
         $scope->method('trackFileDependency')->willReturnCallback($track);
-        $scope->method('trackClassDependency')->willReturnCallback($track);
 
         self::getContainer()
             ->getByType(ConstraintClosureTypeExtension::class)
             ->expected($node, $scope);
+        $files = array_map(realpath(...), $tracked);
+        $counts = array_count_values(array_filter($files, is_string(...)));
 
-        // The query file, the model, the counted model and its builder.
-        self::assertSame(
-            [
-                __DIR__ . '/data/constraint-types.php',
-                Category::class,
-                Tag::class,
-                Builder::class,
-            ],
-            $tracked,
-        );
+        // Files, not classes: Larastan crashes when the result cache restores
+        // a class dependency (undefined LARAVEL_VERSION).
+        self::assertNotContains(false, $files, 'Only real files.');
+        // The query, the model and the counted model.
+        self::assertSame(3, $counts[$this->file(ParametersQuery::class)]);
+        // An ancestor of the query, and of both models.
+        self::assertSame(1, $counts[$this->file(FromModel::class)]);
+        self::assertSame(2, $counts[$this->file(Model::class)]);
+        // The builder of the counted model.
+        self::assertSame(1, $counts[$this->file(Builder::class)]);
     }
 
     public function testAScopeWithoutDependencyTrackerIsTyped(): void
@@ -160,6 +163,14 @@ final class ConstraintClosureTypeTest extends TypeInferenceTestCase
         self::assertCount(1, $calls);
 
         return $calls[0];
+    }
+
+    /**
+     * @param class-string $class
+     */
+    private function file(string $class): string
+    {
+        return (string) new ReflectionClass($class)->getFileName();
     }
 
     /**

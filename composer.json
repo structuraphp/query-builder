@@ -13,6 +13,7 @@
         "brianium/paratest": "^7.22",
         "friendsofphp/php-cs-fixer": "^3.94",
         "infection/infection": "^0.32",
+        "larastan/larastan": "^3.13",
         "orchestra/testbench-core": "^11.0",
         "phpstan/phpstan": "^2.1",
         "phpstan/phpstan-phpunit": "^2.0",

@@ -3,7 +3,7 @@ includes:
     - ../../../extension.neon
 
 parameters:
-    level: 0
+    level: max
     tmpDir: ../../../.cache/phpstan-smoke
     paths:
         - .
