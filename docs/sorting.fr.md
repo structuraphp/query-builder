@@ -68,7 +68,11 @@ FROM articles ORDER BY comments_count DESC
   demandé avec `count` ; demandé des deux façons, il n'est calculé qu'une
   fois.
 - La relation n'a pas besoin d'être déclarée comptable (voir
-  [Relations](relations.fr.md#compter-des-relations)).
+  [Relations](relations.fr.md#compter-des-relations)). Si elle l'est, avec
+  une condition, le tri compte avec cette condition et son
+  [contexte](context.fr.md#conditions-des-relations-et-des-comptages)
+  `count`, pour que `comments_count` n'ait qu'un sens ; sinon, tous les
+  modèles liés sont comptés.
 - La pagination par curseur ne sait pas trier sur un nombre calculé :
   `?pagination=cursor&sort[comments]=desc` est refusé sur `sort`, et
   `?pagination=cursor` avec un tri par défaut sur un nombre est refusé sur

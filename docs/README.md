@@ -11,7 +11,8 @@ sends, and what they produce: the SQL query, or the validation error (422).
 - [Context](context.md): give scope arguments from the code, never from the
   client.
 - [Sorting](sorting.md): order the results.
-- [Relations](relations.md): eager load relations.
+- [Relations](relations.md): eager load or count relations, with a
+  condition.
 - [Pagination](pagination.md): offset, cursor or no pagination.
 - [PHPStan rules](phpstan.md): report configuration errors before any call.
 
@@ -44,7 +45,7 @@ public function list(QueryParameters $parameters)
 ```
 
 - `builder()` returns an Eloquent `Builder` you can still modify. It takes
-  the scope [context](context.md).
+  the [context](context.md) of scopes and relation conditions.
 - `paginate()` returns a `LengthAwarePaginator` (`offset`), a
   `CursorPaginator` (`cursor`) or a `Collection` (`none`).
 - The query class is resolved by the Laravel container: its constructor can
@@ -114,8 +115,7 @@ final class ArticleQuery implements FromModel, WithFilter
 
 - No filter on a relation column (`author.name`), no `OR` groups between
   filters: use a scope.
-- No alias and no constraint on loaded relations (see
-  [Relations](relations.md)).
+- No alias on loaded relations (see [Relations](relations.md)).
 - Scopes defined as builder macros are not supported.
 - An integer value outside the column range (PostgreSQL `int4`) is not
   detected: add a `max:` rule to the filter.

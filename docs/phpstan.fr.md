@@ -7,7 +7,8 @@ n'existe plus sur le modèle répond 500. Les règles PHPStan livrées avec la
 librairie signalent ces erreurs dans l'éditeur et en CI.
 
 Les règles ne font que lire le code : elles n'exécutent jamais vos modèles,
-vos classes de query ni le conteneur. Larastan n'est pas requis.
+vos classes de query ni le conteneur. Larastan n'est pas requis, et les
+règles fonctionnent avec lui.
 
 ## Installation
 
@@ -73,7 +74,57 @@ public function filter(FilterInterface $filter): void
 ```
 
 Les classes de query configurées par des closures injectées sont aussi
-signalées : ignorez cet identifiant pour elles.
+signalées : ignorez cet identifiant pour elles. Une closure passée à
+`constrain()` est un argument, pas une configuration : elle est acceptée.
+
+## Closures des conditions
+
+L'extension donne au premier paramètre d'une closure de
+[`constrain()`](relations.fr.md#conditions-sur-les-relations) le type que
+la librairie lui passe :
+
+- pour `relation()`, le type de retour déclaré de la méthode de relation
+  (`HasMany<Product, Category>`), en suivant les modèles liés le long d'un
+  chemin imbriqué (`author.profile`) ;
+- pour `count()`, le Builder du modèle lié, trouvé comme pour
+  `scopeNotFound` : son Builder personnalisé, en classe brute
+  (`ProductBuilder`, pas `ProductBuilder<Product>`), ou `Builder<Product>`
+  sans Builder personnalisé.
+
+```php
+// Category::products(): HasMany<Product, $this>
+$relation->relation('products')
+    ->constrain(fn ($query) => $query->visibleTo($user)); // HasMany<Product, Category>
+$relation->count('products')
+    ->constrain(fn ($query) => $query->visibleTo($user)); // ProductBuilder
+```
+
+Un paramètre sans type reçoit ce type. Un paramètre typé passe quand il peut
+l'accepter (`HasMany`, `Relation`, `HasMany|ProductBuilder`, `Builder`…) ;
+un type incompatible est signalé en `argument.type` :
+
+```php
+$relation->relation('products')
+    ->constrain(fn (Product $query) => $query); // Parameter $query of the constrain() closure expects App\Models\Product, Illuminate\Database\Eloquent\Relations\HasMany<App\Models\Product, App\Models\Category> given.
+```
+
+- Seul le type natif du paramètre est vérifié : un `@param` PHPDoc sur lui
+  ne l'est pas.
+- Les paramètres de contexte, à partir du deuxième, gardent le type que la
+  closure déclare, sans vérification.
+
+Le type n'est donné que si la classe de query est `final`, que `getModel()`
+renvoie `X::class`, que le nom de la relation est une chaîne littérale, et
+que la méthode de relation déclare ses génériques :
+
+```php
+/** @return HasMany<Product, $this> */
+public function products(): HasMany
+```
+
+Sinon, le paramètre ne reçoit aucun type, et aucune erreur : un type plus
+large comme `Relation` signalerait des closures correctement typées.
+L'extension fonctionne avec ou sans Larastan.
 
 ## Chaînes littérales
 

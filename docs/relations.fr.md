@@ -99,6 +99,89 @@ exposer le nombre de commentaires sans exposer les commentaires. Seules les
 relations racines du modèle peuvent être comptées. Pour trier sur un nombre,
 voir [Tri](sorting.fr.md#trier-sur-un-nombre).
 
+`count()` renvoie la configuration du comptage, pas `$relation` : déclarez
+chaque comptage dans sa propre instruction (`->count('a')->count('b')` ne
+fonctionne pas).
+
+## Conditions sur les relations
+
+`constrain()` limite les lignes chargées ou comptées avec une relation. La
+condition est fixée par le code, jamais par le client.
+
+### Condition fixe
+
+```php
+// Category::products(): HasMany<Product, $this>
+$relation->relation('products')
+    ->fields(['id', 'category_id', 'name'])
+    ->constrain(fn (HasMany $query) => $query->where('state', State::Active));
+```
+
+```sql
+-- GET /categories?with=products
+SELECT id, category_id, name FROM products
+WHERE products.category_id IN (1, 2) AND state = 'active'
+```
+
+- La closure reçoit la relation que Laravel charge (`HasMany`, `BelongsTo`,
+  `BelongsToMany`…) : les méthodes de la relation (`wherePivot()`…) et du
+  Builder du modèle lié (les scopes) sont disponibles. Sa valeur de retour
+  est ignorée.
+- `fields()` s'applique après la condition. Sur un `BelongsToMany`, une
+  relation `…Through` ou une relation « one of many », ses colonnes sont
+  préfixées par la table liée (`products.id`), comme Laravel le fait pour
+  `with('products:id')`.
+- Une relation imbriquée a sa propre condition : `?with=author.profile`
+  applique la condition d'`author`, puis celle d'`author.profile`.
+- Un nouvel appel à `constrain()` sur la même relation remplace la
+  condition, comme `fields()`.
+
+### Condition tirée du contexte
+
+À partir du deuxième, les paramètres de la closure reçoivent, par nom, des
+valeurs que le code fournit dans `builder()`, sous la clé `with` :
+
+```php
+$relation->relation('products')
+    ->constrain(fn (HasMany $query, User $user) => $query->visibleTo($user));
+```
+
+```php
+$query = $parameters->builder(context: [
+    'with' => ['products' => ['user' => fn () => $request->user()]],
+]);
+```
+
+Le contexte d'une condition suit les règles du
+[contexte](context.fr.md#conditions-des-relations-et-des-comptages) des
+scopes : une closure n'est appelée que si la relation est chargée, un
+paramètre qui a une valeur par défaut peut être omis.
+
+### Compter avec une condition
+
+```php
+$relation->count('products')
+    ->constrain(fn (ProductBuilder $query) => $query->where('state', State::Active));
+```
+
+```sql
+-- GET /categories?count=products
+SELECT categories.*, (SELECT count(*) FROM products
+    WHERE categories.id = products.category_id AND state = 'active')
+    AS products_count
+FROM categories
+```
+
+- La closure reçoit le Builder Eloquent du modèle lié, que `withCount()`
+  passe : son Builder personnalisé s'il en a un (`ProductBuilder`), sinon
+  `Builder`.
+- Son contexte vient sous la clé `count` :
+  `builder(context: ['count' => ['products' => ['user' => $user]]])`.
+- La colonne garde son nom, `products_count` ; un tri sur ce nombre applique
+  la même condition (voir [Tri](sorting.fr.md#trier-sur-un-nombre)).
+- Une relation n'est comptée qu'une fois : pas de second comptage de la même
+  relation avec une autre condition.
+
 ## Erreurs de validation
 
 | URL                     | Erreur                                    |
@@ -129,6 +212,6 @@ Une `ConfigurationException` est levée à la lecture de la query :
 - Pas d'alias : l'URL utilise le nom de la relation.
 - Pas de filtre sur une colonne de relation (`author.name`) : passez par un
   scope.
-- Pas de contrainte sur la relation chargée ou comptée (seulement certains
-  commentaires) : pas encore supporté.
+- Pas de condition choisie par le client : une condition ne lit que le
+  contexte.
 - Pas d'autre agrégat que le comptage (`withSum`, `withAvg`…).

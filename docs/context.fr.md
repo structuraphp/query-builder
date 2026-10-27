@@ -5,7 +5,8 @@
 Certains arguments de scope doivent venir du code, jamais du client :
 l'utilisateur courant, le client dont parle la page, des identifiants
 calculés par un service… On les déclare comme contexte, et on les fournit au
-moment de construire la requête.
+moment de construire la requête. Les conditions des relations prennent leur
+contexte de la même façon.
 
 ## Déclarer des arguments de contexte
 
@@ -99,6 +100,47 @@ $query = $parameters->builder(context: [
   pas de valeur par défaut, lève une `InvalidArgumentException`.
 - Si le paramètre du scope est lui-même typé `Closure` ou `callable`, la
   closure est passée telle quelle, jamais appelée.
+
+## Conditions des relations et des comptages
+
+Les [conditions](relations.fr.md#conditions-sur-les-relations) des relations
+chargées et comptées prennent leur contexte sous deux clés réservées :
+`with` par chemin de relation, `count` par relation comptée. Une valeur va
+au paramètre de la closure du même nom, à partir du deuxième :
+
+```php
+$relation->relation('products')
+    ->constrain(fn (HasMany $query, User $user) => $query->visibleTo($user));
+$relation->count('products')
+    ->constrain(fn (ProductBuilder $query, User $user) => $query->visibleTo($user));
+```
+
+```php
+$query = $parameters->builder(context: [
+    'with' => ['products' => ['user' => fn () => $request->user()]],
+    'count' => ['products' => ['user' => fn () => $request->user()]],
+]);
+```
+
+- Une closure est appelée sans argument, à la construction de la requête,
+  seulement si la relation est chargée, comptée ou triée. Si le paramètre
+  est lui-même typé `Closure` ou `callable`, la closure est passée telle
+  quelle.
+- La valeur par défaut PHP d'un paramètre remplace un contexte manquant.
+- Une relation chargée, un comptage ou un tri sur un nombre dont le contexte
+  manque, sans valeur par défaut, lève une `LogicException` :
+  `Missing context argument user of relation products.` (ou
+  `of count products.`). Charger `author.profile` demande aussi le contexte
+  d'`author`.
+- Ces clés lèvent une `InvalidArgumentException` à chaque `builder()`, même
+  si la relation n'est pas demandée :
+  - une relation non déclarée avec `relation()`, ou un comptage non déclaré
+    avec `count()` : `Relation ghost is not declared.`,
+    `Count ghost is not declared.` ;
+  - une clé qui n'est pas un paramètre non variadique de la closure à partir
+    du deuxième, ou toute clé d'une relation sans condition :
+    `Relation products has no context argument ghost.`,
+    `Count products has no context argument ghost.`
 
 ## Valeurs par défaut et erreurs
 

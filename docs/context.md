@@ -4,7 +4,8 @@
 
 Some scope arguments must come from the code, never from the client: the
 current user, the customer the page is about, ids computed by a service… They
-are declared as context, and given when the query is built.
+are declared as context, and given when the query is built. The conditions of
+relations take context the same way.
 
 ## Declaring context arguments
 
@@ -96,6 +97,45 @@ $query = $parameters->builder(context: [
   default, throws an `InvalidArgumentException`.
 - If the scope parameter is itself typed `Closure` or `callable`, the closure
   is passed as is, never called.
+
+## Relation and count conditions
+
+The [conditions](relations.md#constraining-relations) of loaded and counted
+relations take their context under two reserved keys: `with` by relation
+path, `count` by counted relation. A value goes to the closure parameter of
+the same name, from the second one:
+
+```php
+$relation->relation('products')
+    ->constrain(fn (HasMany $query, User $user) => $query->visibleTo($user));
+$relation->count('products')
+    ->constrain(fn (ProductBuilder $query, User $user) => $query->visibleTo($user));
+```
+
+```php
+$query = $parameters->builder(context: [
+    'with' => ['products' => ['user' => fn () => $request->user()]],
+    'count' => ['products' => ['user' => fn () => $request->user()]],
+]);
+```
+
+- A closure is called without arguments, when the query is built, only if
+  the relation is loaded, counted or sorted on. If the parameter is itself
+  typed `Closure` or `callable`, the closure is passed as is.
+- The PHP default of a parameter replaces a missing context.
+- A loaded relation, count or count sort whose context is missing, without
+  a default, throws a `LogicException`: `Missing context argument user of
+  relation products.` (or `of count products.`). Loading `author.profile`
+  needs the context of `author` too.
+- These keys throw an `InvalidArgumentException` at every `builder()`, even
+  when the relation is not requested:
+  - a relation not declared with `relation()`, or a count not declared with
+    `count()`: `Relation ghost is not declared.`,
+    `Count ghost is not declared.`;
+  - a key that is not a non-variadic closure parameter from the second one,
+    or any key of a relation without condition:
+    `Relation products has no context argument ghost.`,
+    `Count products has no context argument ghost.`
 
 ## Defaults and errors
 

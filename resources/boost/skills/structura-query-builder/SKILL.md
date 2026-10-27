@@ -1,6 +1,6 @@
 ---
 name: structura-query-builder
-description: Write or change query classes of structuraphp/query-builder, the Laravel library that turns HTTP query strings into Eloquent queries (filters, scopes, scope context, sorting, relations, pagination, QueryRequest, QueryParameters). Use when declaring an API list endpoint, adding a filter, scope, sort or relation to a query class, or testing one.
+description: Write or change query classes of structuraphp/query-builder, the Laravel library that turns HTTP query strings into Eloquent queries (filters, scopes, scope context, sorting, relations and their conditions, pagination, QueryRequest, QueryParameters). Use when declaring an API list endpoint, adding a filter, scope, sort or relation to a query class, or testing one.
 ---
 
 # StructuraPHP Query Builder
@@ -38,8 +38,9 @@ Each `With*` contract adds one method: `filter(FilterInterface)`,
 `scope(ScopeInterface)`, `sort(SortInterface)`,
 `relation(RelationInterface)`, `paginate(PaginationInterface)`. Each one is a
 flat list of calls on its parameter, with literal names: no `if`, loop,
-helper, closure receiving the parameter or `parent::` call. PHPStan reports
-anything else (`structuraQueryBuilder.flatConfiguration`).
+helper, closure receiving the parameter or `parent::` call (a closure given
+to `constrain()` is fine). PHPStan reports anything else
+(`structuraQueryBuilder.flatConfiguration`).
 
 The query class is resolved by the container: its constructor may receive
 dependencies, but the configuration must not depend on them.
@@ -151,6 +152,8 @@ $query = $parameters->builder(context: [
 - A requested scope with missing context and no default throws a
   `LogicException`; a context key for an undeclared scope or argument throws
   an `InvalidArgumentException`.
+- `with` and `count` context keys hold the values of relation conditions
+  (see Relations), never scope context.
 
 ## Sorting
 
@@ -182,8 +185,48 @@ public function relation(RelationInterface $relation): void
 
 URL: `?with=author,author.profile&count=comments`. `fields()` must keep the
 keys the relation needs (`id` for a `belongsTo`, the foreign key for a
-`hasMany`). Only root relations can be counted. No alias and no constraint
-on loaded relations.
+`hasMany`). Only root relations can be counted. No alias. `count()` returns
+the configuration of the count, not `$relation`: one `count()` per
+statement, never `->count('a')->count('b')`.
+
+### Conditions
+
+`constrain()` limits the rows loaded or counted; the client never chooses
+the condition:
+
+```php
+// Category::products(): HasMany<Product, $this>
+$relation->relation('products')
+    ->fields(['id', 'category_id', 'name'])
+    ->constrain(fn (HasMany $query) => $query->where('state', State::Active));
+$relation->count('products')
+    ->constrain(fn (ProductBuilder $query, User $user) => $query->visibleTo($user));
+
+$query = $parameters->builder(context: [
+    'count' => ['products' => ['user' => fn () => $request->user()]],
+]);
+```
+
+- The closure receives the relation for `relation()` (`HasMany`,
+  `BelongsToMany`... with `wherePivot()`), the related model's builder for
+  `count()` (its custom builder if any, else `Builder`). `fields()` applies
+  after it; the last `constrain()` wins.
+- From the second one, closure parameters receive by name the values given
+  under the `with` (by relation path) or `count` (by count) context key. A
+  closure value is called without arguments, only when the relation is
+  loaded, counted or sorted on (unless the parameter is typed `Closure` or
+  `callable`).
+- A count sort on a declared `count()` applies its condition and `count`
+  context, so `{relation}_count` keeps one meaning.
+- A missing value without PHP default throws a `LogicException` when
+  needed; an undeclared relation or count, or an unknown parameter name,
+  throws an `InvalidArgumentException` at every `builder()`.
+- Type the first parameter with the declared relation type (`HasMany`,
+  `HasMany<Product, Category>`, `Relation`) or the builder
+  (`ProductBuilder`, `Builder`), or leave it untyped: PHPStan types it when
+  the query class is `final`, `getModel()` returns `X::class` and the
+  relation method declares its generics (`@return HasMany<Product, $this>`),
+  and reports an incompatible native type as `argument.type`.
 
 ## Pagination
 

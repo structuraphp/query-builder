@@ -84,6 +84,86 @@ expose the number of comments without exposing the comments. Only root
 relations of the model can be counted. To sort on a count, see
 [Sorting](sorting.md#sorting-on-a-count).
 
+`count()` returns the configuration of the count, not `$relation`: declare
+each count in its own statement (`->count('a')->count('b')` does not work).
+
+## Constraining relations
+
+`constrain()` limits the rows loaded or counted with a relation. The
+condition is set by the code, never by the client.
+
+### Fixed condition
+
+```php
+// Category::products(): HasMany<Product, $this>
+$relation->relation('products')
+    ->fields(['id', 'category_id', 'name'])
+    ->constrain(fn (HasMany $query) => $query->where('state', State::Active));
+```
+
+```sql
+-- GET /categories?with=products
+SELECT id, category_id, name FROM products
+WHERE products.category_id IN (1, 2) AND state = 'active'
+```
+
+- The closure receives the relation Laravel loads (`HasMany`, `BelongsTo`,
+  `BelongsToMany`…), so methods of the relation (`wherePivot()`…) and of the
+  related model's builder (scopes) are available. Its return value is
+  ignored.
+- `fields()` applies after the condition. On a `BelongsToMany`, a
+  `…Through` or a one-of-many relation, its columns are prefixed with the
+  related table (`products.id`), as Laravel does for `with('products:id')`.
+- A nested relation has its own condition: `?with=author.profile` runs the
+  condition of `author`, then the one of `author.profile`.
+- Calling `constrain()` again on the same relation replaces the condition,
+  like `fields()`.
+
+### Condition from the context
+
+From the second one, the parameters of the closure receive, by name, values
+the code gives in `builder()`, under the `with` key:
+
+```php
+$relation->relation('products')
+    ->constrain(fn (HasMany $query, User $user) => $query->visibleTo($user));
+```
+
+```php
+$query = $parameters->builder(context: [
+    'with' => ['products' => ['user' => fn () => $request->user()]],
+]);
+```
+
+The context of a condition follows the rules of the scope
+[context](context.md#relation-and-count-conditions): a closure is only called
+when the relation is loaded, a parameter with a default may be left out.
+
+### Counting with a condition
+
+```php
+$relation->count('products')
+    ->constrain(fn (ProductBuilder $query) => $query->where('state', State::Active));
+```
+
+```sql
+-- GET /categories?count=products
+SELECT categories.*, (SELECT count(*) FROM products
+    WHERE categories.id = products.category_id AND state = 'active')
+    AS products_count
+FROM categories
+```
+
+- The closure receives the Eloquent builder of the related model, which
+  `withCount()` passes: its custom builder if it has one (`ProductBuilder`),
+  otherwise `Builder`.
+- Its context comes under the `count` key:
+  `builder(context: ['count' => ['products' => ['user' => $user]]])`.
+- The column keeps its name, `products_count`; a sort on this count applies
+  the same condition (see [Sorting](sorting.md#sorting-on-a-count)).
+- A relation is counted once: there is no second count of the same relation
+  with another condition.
+
 ## Validation errors
 
 | URL                     | Error                                    |
@@ -113,6 +193,5 @@ A `ConfigurationException` is thrown when the query is read:
 
 - No alias: the URL uses the relation name.
 - No filter on a relation column (`author.name`): use a scope.
-- No constraint on the loaded or counted relation (only some comments): not
-  supported yet.
+- No condition chosen by the client: a condition only reads the context.
 - No other aggregate than the count (`withSum`, `withAvg`…).

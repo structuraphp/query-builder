@@ -7,7 +7,7 @@ longer exists on the model answers a 500. The PHPStan rules shipped with the
 library report these errors in your editor and in CI instead.
 
 The rules read the code only: they never run your models, your query classes
-or the container. Larastan is not required.
+or the container. Larastan is not required, and the rules work with it.
 
 ## Installation
 
@@ -71,7 +71,56 @@ public function filter(FilterInterface $filter): void
 ```
 
 Query classes configured through injected closures are reported too: ignore
-this identifier for them.
+this identifier for them. A closure given to `constrain()` is an argument,
+not a configuration: it is accepted.
+
+## Condition closures
+
+The extension gives the first parameter of a
+[`constrain()`](relations.md#constraining-relations) closure the type the
+library passes it:
+
+- for `relation()`, the declared return type of the relation method
+  (`HasMany<Product, Category>`), following the related models along a
+  nested path (`author.profile`);
+- for `count()`, the builder of the related model, found as for
+  `scopeNotFound`: its custom builder as a raw class (`ProductBuilder`, not
+  `ProductBuilder<Product>`), or `Builder<Product>` without one.
+
+```php
+// Category::products(): HasMany<Product, $this>
+$relation->relation('products')
+    ->constrain(fn ($query) => $query->visibleTo($user)); // HasMany<Product, Category>
+$relation->count('products')
+    ->constrain(fn ($query) => $query->visibleTo($user)); // ProductBuilder
+```
+
+An untyped parameter gets this type. A typed one passes when it can accept
+it (`HasMany`, `Relation`, `HasMany|ProductBuilder`, `Builder`…); an
+incompatible one is reported as `argument.type`:
+
+```php
+$relation->relation('products')
+    ->constrain(fn (Product $query) => $query); // Parameter $query of the constrain() closure expects App\Models\Product, Illuminate\Database\Eloquent\Relations\HasMany<App\Models\Product, App\Models\Category> given.
+```
+
+- Only the native type of the parameter is checked: a PHPDoc `@param` on it
+  is not.
+- The context parameters, from the second one, keep the type the closure
+  declares, unchecked.
+
+The type is only given when the query class is `final`, `getModel()`
+returns `X::class`, the relation name is a literal string, and the relation
+method declares its generics:
+
+```php
+/** @return HasMany<Product, $this> */
+public function products(): HasMany
+```
+
+Otherwise, the parameter gets no type, and no error: a wider type such as
+`Relation` would report closures typed correctly. The extension works with
+or without Larastan.
 
 ## Literal strings
 

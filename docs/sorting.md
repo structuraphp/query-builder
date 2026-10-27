@@ -64,7 +64,10 @@ FROM articles ORDER BY comments_count DESC
 - `comments_count` is added to the response, even if the client did not ask
   for it with `count`; asked for both ways, it is computed once.
 - The relation does not need to be declared countable (see
-  [Relations](relations.md#counting-relations)).
+  [Relations](relations.md#counting-relations)). If it is, with a condition,
+  the sort counts with this condition and its `count`
+  [context](context.md#relation-and-count-conditions), so `comments_count`
+  has one meaning; otherwise every related model is counted.
 - Cursor pagination cannot sort on a computed count:
   `?pagination=cursor&sort[comments]=desc` is rejected on `sort`, and
   `?pagination=cursor` with a default count sort on `pagination`

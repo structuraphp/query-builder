@@ -70,12 +70,33 @@ public function index(ArticleQueryRequest $request)
   allowed ids) is declared with `->context('author')` and given in
   `builder(context: ['scope' => ['author' => $user]])`, never read from the
   request.
+- A loaded or counted relation is limited with `constrain()`, never by the
+  client. Its closure receives the relation (or, for a count, the related
+  model's builder), then server values by parameter name, given under the
+  `with` and `count` keys of the context. `count()` returns its own
+  configuration: declare each count in its own statement.
 - `with`, `count`, `sort`, `pagination`, `page`, `cursor` and `limit` are
   reserved names.
 - Parameters are read from the query string only: test with
   `getJson('/articles?title[value]=foo')`, not with a JSON body.
 - After changing a query class, run PHPStan: the `structuraQueryBuilder.*`
   rules report the configuration errors the library throws at runtime.
+
+@verbatim
+<code-snippet name="Relation conditions and their context" lang="php">
+public function relation(RelationInterface $relation): void
+{
+    $relation->relation('products')
+        ->constrain(fn (HasMany $query, User $user) => $query->visibleTo($user));
+    $relation->count('products')
+        ->constrain(fn (ProductBuilder $query) => $query->where('state', State::Active));
+}
+
+$query = $parameters->builder(context: [
+    'with' => ['products' => ['user' => fn () => $request->user()]],
+]);
+</code-snippet>
+@endverbatim
 
 For filters, scopes, context, sorting, relations and pagination in detail,
 use the `structura-query-builder` skill when it is available.

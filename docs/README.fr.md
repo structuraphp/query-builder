@@ -12,7 +12,8 @@ de validation (422).
 - [Contexte](context.fr.md) : fournir des arguments de scope depuis le code,
   jamais depuis le client.
 - [Tri](sorting.fr.md) : ordonner les résultats.
-- [Relations](relations.fr.md) : charger des relations.
+- [Relations](relations.fr.md) : charger ou compter des relations, avec une
+  condition.
 - [Pagination](pagination.fr.md) : par offset, par curseur ou sans
   pagination.
 - [Règles PHPStan](phpstan.fr.md) : signaler les erreurs de configuration
@@ -49,7 +50,7 @@ public function list(QueryParameters $parameters)
 ```
 
 - `builder()` renvoie un `Builder` Eloquent encore modifiable. Il prend le
-  [contexte](context.fr.md) des scopes.
+  [contexte](context.fr.md) des scopes et des conditions de relation.
 - `paginate()` renvoie un `LengthAwarePaginator` (`offset`), un
   `CursorPaginator` (`cursor`) ou une `Collection` (`none`).
 - La classe de query est résolue par le container Laravel : son
@@ -123,8 +124,7 @@ final class ArticleQuery implements FromModel, WithFilter
 
 - Pas de filtre sur une colonne de relation (`author.name`), pas de groupes
   `OR` entre filtres : passez par un scope.
-- Pas d'alias ni de contrainte sur les relations chargées (voir
-  [Relations](relations.fr.md)).
+- Pas d'alias sur les relations chargées (voir [Relations](relations.fr.md)).
 - Les scopes définis en macro du Builder ne sont pas supportés.
 - Une valeur entière hors de la plage de la colonne (`int4` PostgreSQL)
   n'est pas détectée : ajoutez une règle `max:` au filtre.
