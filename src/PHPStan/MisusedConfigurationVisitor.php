@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace StructuraPhp\QueryBuilder\PHPStan;
 
 use PhpParser\Node;
-use PhpParser\Node\Expr;
 use PhpParser\Node\Expr\ArrowFunction;
 use PhpParser\Node\Expr\Closure;
 use PhpParser\Node\Expr\StaticCall;
@@ -24,14 +23,14 @@ final class MisusedConfigurationVisitor extends NodeVisitorAbstract
     /** @var list<int> */
     public array $lines = [];
 
-    /** @var array<int, Expr|string> */
+    /** @var array<int, string> */
     private array $bound;
 
-    /** @var list<array<int, Expr|string>> */
+    /** @var list<array<int, string>> */
     private array $outer = [];
 
     /**
-     * @param list<Expr|string> $bound
+     * @param list<string> $bound
      */
     public function __construct(array $bound)
     {

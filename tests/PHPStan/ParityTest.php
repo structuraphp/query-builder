@@ -7,6 +7,9 @@ namespace Tests\StructuraPhp\QueryBuilder\PHPStan;
 use Override;
 use PHPStan\Rules\Rule;
 use PHPStan\Testing\RuleTestCase;
+use RecursiveDirectoryIterator;
+use RecursiveIteratorIterator;
+use SplFileInfo;
 use StructuraPhp\QueryBuilder\PHPStan\ConfigurationCollector;
 use StructuraPhp\QueryBuilder\PHPStan\QueryClassCollector;
 use StructuraPhp\QueryBuilder\PHPStan\QueryConfigurationRule;
@@ -32,7 +35,7 @@ final class ParityTest extends RuleTestCase
 
         foreach ($this->runtimeFormats() as $format) {
             $pattern = '/^' . strtr(preg_quote($format, '/'), [
-                '%s' => '.+',
+                '%s' => '[^"]+',
                 '%d' => '\d+',
             ]) . '$/s';
 
@@ -76,12 +79,18 @@ final class ParityTest extends RuleTestCase
     private function runtimeFormats(): array
     {
         $source = '';
+        $files = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator(__DIR__ . '/../../src'),
+        );
 
-        foreach ([
-            ...$this->files(__DIR__ . '/../../src/Service/*.php'),
-            ...$this->files(__DIR__ . '/../../src/ValueObject/Config/*.php'),
-        ] as $file) {
-            $source .= file_get_contents($file);
+        foreach ($files as $file) {
+            /** @var SplFileInfo $file */
+            if (
+                $file->getExtension() === 'php'
+                && !str_contains($file->getPathname(), '/src/PHPStan/')
+            ) {
+                $source .= file_get_contents($file->getPathname());
+            }
         }
 
         $literal = "'(?:[^'\\\\\\\\]|\\\\\\\\.)*'";
@@ -90,6 +99,12 @@ final class ParityTest extends RuleTestCase
             . $literal . '(?:\s*\.\s*' . $literal . ')*)/',
             $source,
             $matches,
+        );
+
+        // A throw written another way would escape the parity check.
+        self::assertCount(
+            substr_count($source, 'new ConfigurationException('),
+            $matches[1],
         );
 
         $formats = [];

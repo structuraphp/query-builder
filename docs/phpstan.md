@@ -80,6 +80,16 @@ is typed `literal-string`: PHPStan reports a name built from a variable or
 from user input. A `literal-string` with several possible values is accepted,
 but the checks that depend on it are skipped.
 
+PHPStan reports a `literal-string` violation from level 7 only. Below, a
+dynamic name passes, and the `scopeNotFound` and `configuration` rules skip
+it silently.
+
+### Upgrading
+
+At level 7 or above, a project that passes non-literal names gets new
+`argument.type` errors: build the name from literals, or ignore the error
+where the value is known to be safe.
+
 ## Inherited configuration
 
 A configuration method inherited from a parent class is checked for each
@@ -89,9 +99,10 @@ file.
 ## What is skipped
 
 The rules never report what they cannot read: a name that is not a constant
-string, a model they cannot resolve, a class not yet analysed. With a partial
-analysis (the editor analysing one file), the rule that needs the whole
-project reports nothing.
+string, a model they cannot resolve, a class not yet analysed, an anonymous
+query class (its reflection only exists in the process that found it). With a
+partial analysis (the editor analysing one file), the rule that needs the
+whole project reports nothing.
 
 ## Ignoring an identifier
 

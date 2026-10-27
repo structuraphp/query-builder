@@ -28,3 +28,18 @@ class MissingBuilderArticle extends Model
 {
     protected static string $builder = 'Tests\Missing\Builder';
 }
+
+class UnsetHiddenArticle extends Model
+{
+    protected $hidden;
+}
+
+class StringHiddenArticle extends Model
+{
+    protected $hidden = 'secret';
+}
+
+class MixedHiddenArticle extends Model
+{
+    protected $hidden = [null, 'secret', 1];
+}

@@ -2,6 +2,7 @@ SHELL=bash
 SOURCE_DIR = $(shell pwd)
 BIN_DIR = ${SOURCE_DIR}/vendor/bin
 COMPOSER = composer
+SMOKE_DIR = tests/PHPStan/Smoke
 
 _CYAN=\033[36m
 _GREEN=\033[32m
@@ -87,6 +88,26 @@ phpstan: ## Run static analysis (PHPStan)
 	$(call printSection,PHPSTAN)
 	${BIN_DIR}/phpstan --memory-limit=1G analyse
 
+.PHONY: phpstan-smoke
+phpstan-smoke: ## Run the rules on a sample project: fresh, then from cache
+	$(call printSection,PHPSTAN SMOKE)
+	rm -rf .cache/phpstan-smoke
+	@mkdir -p .cache
+	@for run in fresh cached; do \
+		${BIN_DIR}/phpstan analyse --no-progress --error-format=raw -vv \
+			-c ${SMOKE_DIR}/phpstan.neon \
+			> .cache/phpstan-smoke.out 2> .cache/phpstan-smoke.err; \
+		! grep -q 'Internal error' .cache/phpstan-smoke.out \
+			.cache/phpstan-smoke.err \
+		&& sed 's|^${SOURCE_DIR}/||' .cache/phpstan-smoke.out \
+			| diff ${SMOKE_DIR}/expected.txt - \
+		|| { cat .cache/phpstan-smoke.err >&2; \
+			echo "$$run run: unexpected result" >&2; exit 1; }; \
+	done
+	@grep -q 'Result cache restored' .cache/phpstan-smoke.err \
+		|| { echo 'The second run did not use the result cache' >&2; exit 1; }
+	@echo 'Both runs report exactly the expected errors.'
+
 .PHONY: dependency
 dependency: ## Check for unused or missing composer dependencies
 	$(call printSection,COMPOSER DEPENDENCY)
@@ -143,6 +164,7 @@ ci: ## Run all CI checks
 	@test ! -f phpstan-baseline.neon || { echo "phpstan-baseline.neon forbidden: fix the errors instead of hiding them" >&2; exit 1; }
 	$(MAKE) --no-print-directory psr4
 	$(MAKE) --no-print-directory phpstan
+	$(MAKE) --no-print-directory phpstan-smoke
 	$(MAKE) --no-print-directory dependency
 	$(COMPOSER) audit
 	$(MAKE) --no-print-directory test

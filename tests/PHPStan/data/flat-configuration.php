@@ -123,3 +123,30 @@ final class ReturningQuery implements WithScope
 }
 
 function helper(FilterInterface $filter): void {}
+
+final class TrailingReturnQuery implements WithScope
+{
+    public function scope(ScopeInterface $scope): void
+    {
+        $scope->scope('a');
+
+        return;
+    }
+}
+
+final class EarlyReturnQuery implements WithScope
+{
+    public function scope(ScopeInterface $scope): void
+    {
+        return;
+        $scope->scope('a');
+    }
+}
+
+final class VariableVariableQuery implements WithScope
+{
+    public function scope(ScopeInterface $scope): void
+    {
+        ${'a'} = $scope->scope('a');
+    }
+}

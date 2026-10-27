@@ -16,7 +16,10 @@ return static function (RectorConfig $rectorConfig): void {
         __DIR__ . '/tests',
     ]);
 
-    $rectorConfig->skip([__DIR__ . '/tests/PHPStan/data']);
+    $rectorConfig->skip([
+        __DIR__ . '/tests/PHPStan/data',
+        __DIR__ . '/tests/PHPStan/Smoke',
+    ]);
 
     $rectorConfig->phpVersion(PhpVersion::PHP_84);
 

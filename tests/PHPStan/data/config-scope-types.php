@@ -132,3 +132,28 @@ final class ScopeTypesQuery implements FromModel, WithScope
         $scope->scope('scalars');
     }
 }
+
+class CasedDateArticle extends Article
+{
+    /**
+     * @param Builder<self> $query
+     */
+    public function scopeSince(
+        Builder $query,
+        \carbon\CARBONimmutable $a,
+        \CARBON\carbon $b,
+    ): void {}
+}
+
+final class CasedDateQuery implements FromModel, WithScope
+{
+    public function getModel(): string
+    {
+        return CasedDateArticle::class;
+    }
+
+    public function scope(ScopeInterface $scope): void
+    {
+        $scope->scope('since');
+    }
+}

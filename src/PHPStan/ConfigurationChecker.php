@@ -8,6 +8,7 @@ use PHPStan\Rules\IdentifierRuleError;
 use PHPStan\Rules\RuleErrorBuilder;
 use StructuraPhp\QueryBuilder\Enum\PaginationMode;
 use StructuraPhp\QueryBuilder\Service\Definition;
+use StructuraPhp\QueryBuilder\ValueObject\Config\Pagination;
 
 /**
  * The checks Definition::fromQuery() makes at runtime, but on the calls of
@@ -437,7 +438,11 @@ final class ConfigurationChecker
 
         $mode = self::defaultMode($calls);
         $allowed = $allow === null
-            ? [self::MODE . 'Offset', self::MODE . 'Cursor']
+            ? array_map(
+                static fn (PaginationMode $mode): string => self::MODE
+                    . $mode->name,
+                new Pagination()->allowed,
+            )
             : self::modes($allow);
 
         // Without a call, the default mode is allowed.
@@ -465,8 +470,12 @@ final class ConfigurationChecker
         $max = self::last($calls, 'maxlimit');
         $at = $limit ?? $max;
 
-        $value = $limit === null ? 50 : QuerySnapshot::int($limit, 0, 'limit');
-        $ceiling = $max === null ? 100 : QuerySnapshot::int($max, 0, 'max');
+        $value = $limit === null
+            ? new Pagination()->limit
+            : QuerySnapshot::int($limit, 0, 'limit');
+        $ceiling = $max === null
+            ? new Pagination()->maxLimit
+            : QuerySnapshot::int($max, 0, 'max');
 
         if ($at === null || $value === null || $ceiling === null) {
             return null;
@@ -490,7 +499,7 @@ final class ConfigurationChecker
         $default = self::last($calls, 'default');
 
         return $default === null
-            ? self::MODE . 'Offset'
+            ? self::MODE . new Pagination()->default->name
             : self::mode($default, 0, 'mode');
     }
 

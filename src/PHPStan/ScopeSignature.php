@@ -11,14 +11,9 @@ namespace StructuraPhp\QueryBuilder\PHPStan;
 final readonly class ScopeSignature
 {
     /**
-     * @param list<array{
-     *     name: string,
-     *     type: ?string,
-     *     optional: bool,
-     * }> $parameters
+     * @param list<array{name: string, type: ?string}> $parameters
      */
     public function __construct(
-        public bool $onBuilder,
         public array $parameters,
     ) {}
 }

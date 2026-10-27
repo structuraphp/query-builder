@@ -15,7 +15,10 @@ use Tests\StructuraPhp\QueryBuilder\PHPStan\Data\HiddenArrayArticle;
 use Tests\StructuraPhp\QueryBuilder\PHPStan\Data\HiddenTraitArticle;
 use Tests\StructuraPhp\QueryBuilder\PHPStan\Data\LooseBuilderArticle;
 use Tests\StructuraPhp\QueryBuilder\PHPStan\Data\MissingBuilderArticle;
+use Tests\StructuraPhp\QueryBuilder\PHPStan\Data\MixedHiddenArticle;
 use Tests\StructuraPhp\QueryBuilder\PHPStan\Data\NamedBuilderArticle;
+use Tests\StructuraPhp\QueryBuilder\PHPStan\Data\StringHiddenArticle;
+use Tests\StructuraPhp\QueryBuilder\PHPStan\Data\UnsetHiddenArticle;
 
 final class ModelInspectorTest extends PHPStanTestCase
 {
@@ -25,15 +28,15 @@ final class ModelInspectorTest extends PHPStanTestCase
 
         $date = CarbonImmutable::class;
 
-        self::assertEquals(new ScopeSignature(false, [
-            ['name' => 'from', 'type' => $date, 'optional' => false],
-            ['name' => 'to', 'type' => $date, 'optional' => false],
+        self::assertEquals(new ScopeSignature([
+            ['name' => 'from', 'type' => $date],
+            ['name' => 'to', 'type' => $date],
         ]), $model->findScope('publishedBetween'));
-        self::assertEquals(new ScopeSignature(false, [
-            ['name' => 'min', 'type' => 'int', 'optional' => true],
+        self::assertEquals(new ScopeSignature([
+            ['name' => 'min', 'type' => 'int'],
         ]), $model->findScope('minViews'));
-        self::assertEquals(new ScopeSignature(false, [
-            ['name' => 'value', 'type' => null, 'optional' => false],
+        self::assertEquals(new ScopeSignature([
+            ['name' => 'value', 'type' => null],
         ]), $model->findScope('union'));
         self::assertNull($model->findScope('missing'));
         self::assertTrue($model->knowsScopes());
@@ -41,12 +44,12 @@ final class ModelInspectorTest extends PHPStanTestCase
 
     public function testBuilderMethodKeepsItsParameters(): void
     {
-        self::assertEquals(new ScopeSignature(true, [
-            ['name' => 'min', 'type' => 'int', 'optional' => false],
+        self::assertEquals(new ScopeSignature([
+            ['name' => 'min', 'type' => 'int'],
         ]), $this->inspect(BuiltArticle::class)->findScope('viewsAtLeast'));
-        self::assertEquals(new ScopeSignature(true, [
-            ['name' => 'min', 'type' => 'int', 'optional' => false],
-            ['name' => 'max', 'type' => 'int', 'optional' => false],
+        self::assertEquals(new ScopeSignature([
+            ['name' => 'min', 'type' => 'int'],
+            ['name' => 'max', 'type' => 'int'],
         ]), $this->inspect(NamedBuilderArticle::class)
             ->findScope('viewsBetween'));
     }
@@ -84,6 +87,22 @@ final class ModelInspectorTest extends PHPStanTestCase
         self::assertSame(
             ['secret', 'token'],
             $this->inspect(HiddenTraitArticle::class)->hiddenColumns(),
+        );
+    }
+
+    public function testHiddenThatIsNotAListOfColumns(): void
+    {
+        self::assertSame(
+            [],
+            $this->inspect(UnsetHiddenArticle::class)->hiddenColumns(),
+        );
+        self::assertSame(
+            [],
+            $this->inspect(StringHiddenArticle::class)->hiddenColumns(),
+        );
+        self::assertSame(
+            ['secret'],
+            $this->inspect(MixedHiddenArticle::class)->hiddenColumns(),
         );
     }
 

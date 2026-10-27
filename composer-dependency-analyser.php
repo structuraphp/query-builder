@@ -16,4 +16,6 @@ return (new Configuration())
         'nikic/php-parser',
         [__DIR__ . '/src/PHPStan', __DIR__ . '/tests/PHPStan'],
         [ErrorType::SHADOW_DEPENDENCY],
-    );
+    )
+    // Class names in another case, which the autoloader cannot find.
+    ->ignoreUnknownClasses(['carbon\\CARBONimmutable', 'CARBON\\carbon']);

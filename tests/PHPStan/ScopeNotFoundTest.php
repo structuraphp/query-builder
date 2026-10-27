@@ -157,6 +157,11 @@ final class ScopeNotFoundTest extends RuleTestCase
         ]);
     }
 
+    public function testAnonymousQueryIsSkipped(): void
+    {
+        $this->analyse([__DIR__ . '/data/scope-anonymous.php'], []);
+    }
+
     public function testQueryWithUnreadableModelIsIgnored(): void
     {
         $this->analyse([__DIR__ . '/data/scope-unreadable-model.php'], []);

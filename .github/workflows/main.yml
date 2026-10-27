@@ -82,6 +82,10 @@ jobs:
         if: matrix.php-version == env.LATEST_PHP_VERSION
         run: vendor/bin/phpstan --memory-limit=1G analyse --error-format=github
 
+      - name: PHPStan rules smoke test
+        if: matrix.php-version == env.LATEST_PHP_VERSION
+        run: make phpstan-smoke
+
       - name: Refactoring
         if: matrix.php-version == env.LATEST_PHP_VERSION
         run: vendor/bin/rector process --dry-run

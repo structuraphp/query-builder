@@ -159,3 +159,29 @@ final class HiddenUnreadableModeQuery implements
         return PaginationMode::Offset;
     }
 }
+
+final class UnsetHiddenSortsQuery implements FromModel, WithSort
+{
+    public function getModel(): string
+    {
+        return UnsetHiddenArticle::class;
+    }
+
+    public function sort(SortInterface $sort): void
+    {
+        $sort->sort('secret');
+    }
+}
+
+final class StringHiddenSortsQuery implements FromModel, WithSort
+{
+    public function getModel(): string
+    {
+        return StringHiddenArticle::class;
+    }
+
+    public function sort(SortInterface $sort): void
+    {
+        $sort->sort('secret');
+    }
+}

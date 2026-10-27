@@ -26,7 +26,9 @@ final class QueryClassCollector implements Collector
     {
         $class = $node->getClassReflection();
 
+        // An anonymous class is only known to the worker that found it.
         return !$class->isAbstract()
+            && !$class->isAnonymous()
             && $class->implementsInterface(FromModel::class)
             ? $class->getName()
             : null;

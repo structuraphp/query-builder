@@ -7,11 +7,13 @@ namespace Tests\StructuraPhp\QueryBuilder\PHPStan\Data;
 use StructuraPhp\QueryBuilder\Contract\Config\FilterInterface;
 use StructuraPhp\QueryBuilder\Contract\Config\PaginationInterface;
 use StructuraPhp\QueryBuilder\Contract\Config\RelationInterface;
+use StructuraPhp\QueryBuilder\Contract\Config\ScopeInterface;
 use StructuraPhp\QueryBuilder\Contract\Config\SortInterface;
 use StructuraPhp\QueryBuilder\Contract\Query\FromModel;
 use StructuraPhp\QueryBuilder\Contract\Query\WithFilter;
 use StructuraPhp\QueryBuilder\Contract\Query\WithPaginate;
 use StructuraPhp\QueryBuilder\Contract\Query\WithRelation;
+use StructuraPhp\QueryBuilder\Contract\Query\WithScope;
 use StructuraPhp\QueryBuilder\Contract\Query\WithSort;
 use StructuraPhp\QueryBuilder\Enum\Direction;
 use StructuraPhp\QueryBuilder\Enum\PaginationMode;
@@ -101,5 +103,13 @@ final class OtherEnumModeQuery extends UnreadableQuery implements WithPaginate
     {
         $pagination->default(Direction::Asc);
         $pagination->allow(Direction::Desc);
+    }
+}
+
+final class DynamicVariableQuery extends UnreadableQuery implements WithScope
+{
+    public function scope(ScopeInterface $scope): void
+    {
+        ${'a'} = $scope->scope('missing');
     }
 }

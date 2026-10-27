@@ -141,8 +141,10 @@ final readonly class ModelInspector
 
         // A class Carbon or CarbonImmutable is, or inherits from.
         return $class->isBackedEnum()
-            || $this->reflection->getClass(Carbon::class)->is($type)
-            || $this->reflection->getClass(CarbonImmutable::class)->is($type);
+            || $this->reflection->getClass(Carbon::class)
+                ->is($class->getName())
+            || $this->reflection->getClass(CarbonImmutable::class)
+                ->is($class->getName());
     }
 
     public function name(): string
@@ -167,15 +169,16 @@ final readonly class ModelInspector
      */
     public function hiddenColumns(): array
     {
-        /** @var list<string> $hidden */
         $hidden = $this->model->getProperty('hidden')->getDefaultValue();
         $columns = self::attribute($this->model, Hidden::class);
 
         // Like the attribute: one array of columns, or the columns.
-        /** @var list<string> $columns */
         $columns = \is_array($columns[0] ?? null) ? $columns[0] : $columns;
 
-        return [...$hidden, ...$columns];
+        return array_values(array_filter(
+            [...(\is_array($hidden) ? $hidden : []), ...$columns],
+            \is_string(...),
+        ));
     }
 
     /**
@@ -276,13 +279,12 @@ final readonly class ModelInspector
             $onBuilder ? 0 : 1,
         );
 
-        return new ScopeSignature($onBuilder, array_map(
+        return new ScopeSignature(array_map(
             static fn (ReflectionParameter $parameter): array => [
                 'name' => $parameter->getName(),
                 'type' => $parameter->getType() instanceof ReflectionNamedType
                     ? $parameter->getType()->getName()
                     : null,
-                'optional' => $parameter->isDefaultValueAvailable(),
             ],
             $parameters,
         ));

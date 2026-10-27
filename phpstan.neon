@@ -11,6 +11,7 @@ parameters:
         - tests
     excludePaths:
         - tests/PHPStan/data
+        - tests/PHPStan/Smoke
     ignoreErrors:
         -
             identifier: structuraQueryBuilder.flatConfiguration

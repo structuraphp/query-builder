@@ -12,6 +12,7 @@ use PhpParser\Node\Expr\Variable;
 use PhpParser\Node\Stmt\ClassMethod;
 use PhpParser\Node\Stmt\Expression;
 use PhpParser\Node\Stmt\Nop;
+use PhpParser\Node\Stmt\Return_;
 use PhpParser\NodeTraverser;
 
 /**
@@ -30,13 +31,21 @@ final class FlatConfigurationAnalyser
             return [];
         }
 
-        $bound = [$name->name];
+        /** @var string $parameter a parameter has a plain name */
+        $parameter = $name->name;
+        $bound = [$parameter];
         $lines = [];
 
         $stmts = array_filter(
             $method->stmts ?? [],
             static fn (Node $stmt): bool => !$stmt instanceof Nop,
         );
+        $last = end($stmts);
+
+        // A bare return that ends the method changes nothing.
+        if ($last instanceof Return_ && !$last->expr instanceof Expr) {
+            array_pop($stmts);
+        }
 
         foreach ($stmts as $stmt) {
             $expr = $stmt instanceof Expression ? $stmt->expr : null;
@@ -51,9 +60,15 @@ final class FlatConfigurationAnalyser
                 ? $this->chainArguments($expr, $bound)
                 : null;
 
-            $plain = !$target instanceof Expr || $this->isLocal($target);
+            // Only a plain local variable: not $$name, nor a property.
+            $local = $target instanceof Variable && \is_string($target->name)
+                ? $target->name
+                : null;
 
-            if ($args === null || !$plain) {
+            if (
+                $args === null
+                || $target instanceof Expr && $local === null
+            ) {
                 $lines[$stmt->getStartLine()] = null;
 
                 continue;
@@ -63,21 +78,16 @@ final class FlatConfigurationAnalyser
                 $lines[$line] = null;
             }
 
-            if ($target instanceof Variable) {
-                $bound[] = $target->name;
+            if ($local !== null) {
+                $bound[] = $local;
             }
         }
 
         return array_keys($lines);
     }
 
-    private function isLocal(Expr $expr): bool
-    {
-        return $expr instanceof Variable;
-    }
-
     /**
-     * @param list<Expr|string> $bound
+     * @param list<string> $bound
      *
      * @return null|list<int> lines of the misused objects, null when the
      *                        chain does not start from a bound variable
@@ -103,7 +113,7 @@ final class FlatConfigurationAnalyser
     }
 
     /**
-     * @param list<Expr|string> $bound
+     * @param list<string> $bound
      *
      * @return list<int>
      */

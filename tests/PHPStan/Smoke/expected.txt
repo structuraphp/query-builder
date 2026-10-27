@@ -1,0 +1,1 @@
+tests/PHPStan/Smoke/BrokenPostQuery.php:20:Scope "ghost" does not exist on Tests\StructuraPhp\QueryBuilder\PHPStan\Smoke\Post. [identifier=structuraQueryBuilder.scopeNotFound]

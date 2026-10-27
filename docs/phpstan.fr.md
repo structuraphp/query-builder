@@ -82,6 +82,16 @@ est typé `literal-string` : PHPStan signale un nom construit depuis une
 variable ou une saisie. Un `literal-string` à plusieurs valeurs possibles est
 accepté, mais les vérifications qui en dépendent sont ignorées.
 
+PHPStan ne signale une violation de `literal-string` qu'à partir du niveau 7.
+En dessous, un nom dynamique passe, et les règles `scopeNotFound` et
+`configuration` l'ignorent sans rien dire.
+
+### Mise à jour
+
+Au niveau 7 ou plus, un projet qui passe des noms non littéraux reçoit de
+nouvelles erreurs `argument.type` : construisez le nom à partir de littéraux,
+ou ignorez l'erreur là où la valeur est sûre.
+
 ## Configuration héritée
 
 Une méthode de configuration héritée d'une classe parente est vérifiée pour
@@ -92,8 +102,10 @@ dans le fichier du parent.
 
 Les règles ne signalent jamais ce qu'elles ne savent pas lire : un nom qui
 n'est pas une chaîne constante, un modèle qu'elles ne résolvent pas, une
-classe pas encore analysée. Sur une analyse partielle (l'éditeur analyse un
-seul fichier), la règle qui a besoin de tout le projet ne signale rien.
+classe pas encore analysée, une classe de query anonyme (sa réflexion n'existe
+que dans le processus qui l'a trouvée). Sur une analyse partielle (l'éditeur
+analyse un seul fichier), la règle qui a besoin de tout le projet ne signale
+rien.
 
 ## Ignorer un identifiant
 
