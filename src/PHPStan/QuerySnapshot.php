@@ -32,8 +32,7 @@ final readonly class QuerySnapshot
      * @param list<Call> $defaultSorts the calls of sort() but sort(): its
      *                                 default() calls
      * @param list<Entity> $relations
-     * @param list<Call> $counts the calls of relation() but relation(): its
-     *                           count() calls
+     * @param list<Entity> $counts
      * @param list<Call> $pagination the calls of paginate()
      */
     public function __construct(

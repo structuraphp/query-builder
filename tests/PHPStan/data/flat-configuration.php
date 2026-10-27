@@ -6,8 +6,10 @@ namespace Tests\StructuraPhp\QueryBuilder\PHPStan\Data;
 
 use Illuminate\Validation\Rule;
 use StructuraPhp\QueryBuilder\Contract\Config\FilterInterface;
+use StructuraPhp\QueryBuilder\Contract\Config\RelationInterface;
 use StructuraPhp\QueryBuilder\Contract\Config\ScopeInterface;
 use StructuraPhp\QueryBuilder\Contract\Query\WithFilter;
+use StructuraPhp\QueryBuilder\Contract\Query\WithRelation;
 use StructuraPhp\QueryBuilder\Contract\Query\WithScope;
 
 class BaseQuery implements WithFilter
@@ -148,5 +150,16 @@ final class VariableVariableQuery implements WithScope
     public function scope(ScopeInterface $scope): void
     {
         ${'a'} = $scope->scope('a');
+    }
+}
+
+final class ConstrainedQuery implements WithRelation
+{
+    public function relation(RelationInterface $relation): void
+    {
+        $relation->relation('a')->constrain(fn ($query) => $query->latest());
+        $relation->count('b')->constrain(static function ($query) {
+            return $query->where('x', 1);
+        });
     }
 }

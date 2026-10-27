@@ -69,7 +69,7 @@ final class CollectedQuery implements
         $relation->relation('author')->fields(['id', 'name']);
         $relation->relation('comments')
             ->fields($this->flag ? ['id'] : ['body']);
-        $relation->count('comments');
+        $relation->count('comments')->constrain(static fn ($query) => $query);
     }
 
     public function paginate(PaginationInterface $pagination): void

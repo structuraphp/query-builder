@@ -67,7 +67,7 @@ final class ConfigurationChecker
         $counts = [];
 
         foreach ($query->counts as $count) {
-            self::push($errors, self::count($count, $counts, $model));
+            self::push($errors, self::count($count['call'], $counts, $model));
         }
 
         return [

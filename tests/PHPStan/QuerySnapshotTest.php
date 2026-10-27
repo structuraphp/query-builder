@@ -95,7 +95,11 @@ final class QuerySnapshotTest extends RuleTestCase
                     $this->call('fields', 71, [self::UNKNOWN]),
                 ]),
             ],
-            'counts' => [$this->call('count', 72, ['comments'])],
+            'counts' => [
+                $this->entity($this->call('count', 72, ['comments']), [
+                    $this->call('constrain', 72, [['kind' => 'closure']]),
+                ]),
+            ],
             'pagination' => [
                 $this->call('allow', 77, [
                     $this->case(PaginationMode::Offset),
@@ -104,6 +108,21 @@ final class QuerySnapshotTest extends RuleTestCase
                 $this->call('maxlimit', 78, [self::UNKNOWN]),
             ],
         ], json_decode($errors[0]->getMessage(), true));
+    }
+
+    public function testCountIsAnEntityWithItsConstraint(): void
+    {
+        $errors = $this->gatherAnalyserErrors([self::FILE]);
+        $counts = [
+            $this->entity($this->call('count', 72, ['comments']), [
+                $this->call('constrain', 72, [['kind' => 'closure']]),
+            ]),
+        ];
+
+        self::assertStringContainsString(
+            '"counts":' . json_encode($counts),
+            $errors[0]->getMessage(),
+        );
     }
 
     public function testPositionWinsOverName(): void

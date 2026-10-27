@@ -23,9 +23,9 @@ final class FlatConfigurationRuleTest extends RuleTestCase
             array_map(
                 static fn (int $line): array => [self::MESSAGE, $line],
                 [
-                    25, 77, 80, 83, 86, 90, 91, 92,
-                    98, 99, 100, 101, 102, 104, 105, 107,
-                    108, 121, 141, 150,
+                    27, 79, 82, 85, 88, 92, 93, 94,
+                    100, 101, 102, 103, 104, 106, 107, 109,
+                    110, 123, 143, 152,
                 ],
             ),
         );

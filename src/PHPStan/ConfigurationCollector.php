@@ -52,7 +52,13 @@ use StructuraPhp\QueryBuilder\Contract\Query\FromModel;
 final readonly class ConfigurationCollector implements Collector
 {
     /** Calls on the parameter that create an entity. */
-    private const array CREATORS = ['filter', 'scope', 'sort', 'relation'];
+    private const array CREATORS = [
+        'filter',
+        'scope',
+        'sort',
+        'relation',
+        'count',
+    ];
 
     private FlatConfigurationAnalyser $analyser;
 
@@ -218,7 +224,9 @@ final readonly class ConfigurationCollector implements Collector
             $args[$key] = $this->argument($scope->getType($arg->value));
         }
 
-        $creates = \in_array($method, self::CREATORS, true);
+        // count() on a sort is one of its options.
+        $creates = $target === 0
+            && \in_array($method, self::CREATORS, true);
 
         return [
             'target' => $target,

@@ -57,10 +57,27 @@ final class QuerySnapshotFactory
             scopes: $sections['scope']['entities'],
             sorts: $sections['sort']['entities'],
             defaultSorts: $sections['sort']['calls'],
-            relations: $sections['relation']['entities'],
-            counts: $sections['relation']['calls'],
+            relations: self::entities($sections['relation'], false),
+            counts: self::entities($sections['relation'], true),
             pagination: $sections['paginate']['calls'],
         );
+    }
+
+    /**
+     * The entities of the relation section created by count(), or by
+     * relation().
+     *
+     * @param array{entities: list<Entity>, calls: list<Call>} $section
+     *
+     * @return list<Entity>
+     */
+    private static function entities(array $section, bool $counts): array
+    {
+        return array_values(array_filter(
+            $section['entities'],
+            static fn (array $entity): bool => ($entity['call']['method']
+                === 'count') === $counts,
+        ));
     }
 
     /**

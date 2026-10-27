@@ -89,6 +89,17 @@ final class ConfigurationRuleTest extends RuleTestCase
         ]);
     }
 
+    public function testConstrainedCountIsStillChecked(): void
+    {
+        $this->analyse(
+            [__DIR__ . '/data/config-relation-constraints.php'],
+            [
+                [$this->missing('ghost'), 23],
+                ['Count "comments" is declared twice.', 25],
+            ],
+        );
+    }
+
     public function testPagination(): void
     {
         $this->analyse([__DIR__ . '/data/config-pagination.php'], [
