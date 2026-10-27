@@ -161,7 +161,8 @@ avec sa configuration, des exemples d'URL, et le SQL ou l'erreur de
 validation qu'elles produisent : [filtres](docs/filters.fr.md),
 [scopes](docs/scopes.fr.md), [contexte](docs/context.fr.md),
 [tri](docs/sorting.fr.md), [relations](docs/relations.fr.md) et
-[pagination](docs/pagination.fr.md).
+[pagination](docs/pagination.fr.md). Les [règles PHPStan](docs/phpstan.fr.md)
+signalent les erreurs de configuration en CI.
 
 ## Licence
 

@@ -13,6 +13,7 @@ sends, and what they produce: the SQL query, or the validation error (422).
 - [Sorting](sorting.md): order the results.
 - [Relations](relations.md): eager load relations.
 - [Pagination](pagination.md): offset, cursor or no pagination.
+- [PHPStan rules](phpstan.md): report configuration errors before any call.
 
 For installation and the quick start, see the [README](../README.md).
 

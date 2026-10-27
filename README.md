@@ -157,6 +157,7 @@ configuration, example URLs, and the SQL or validation error they produce:
 [filters](docs/filters.md), [scopes](docs/scopes.md),
 [context](docs/context.md), [sorting](docs/sorting.md),
 [relations](docs/relations.md) and [pagination](docs/pagination.md).
+The [PHPStan rules](docs/phpstan.md) report configuration errors in CI.
 
 ## License
 

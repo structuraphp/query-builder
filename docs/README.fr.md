@@ -15,6 +15,8 @@ de validation (422).
 - [Relations](relations.fr.md) : charger des relations.
 - [Pagination](pagination.fr.md) : par offset, par curseur ou sans
   pagination.
+- [Règles PHPStan](phpstan.fr.md) : signaler les erreurs de configuration
+  avant tout appel.
 
 Pour l'installation et le démarrage rapide, voir le
 [README](../README.fr.md).
