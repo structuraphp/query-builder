@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace StructuraPhp\QueryBuilder\PHPStan;
 
+use Carbon\Carbon;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Attributes\UseEloquentBuilder;
@@ -29,6 +31,19 @@ final readonly class ModelInspector
         'newQuery',
     ];
 
+    private const array SCALARS = ['int', 'float', 'bool', 'string', 'array'];
+
+    /** Types that are not a class and that no cast-less argument has. */
+    private const array PSEUDO = [
+        'mixed',
+        'callable',
+        'iterable',
+        'object',
+        'null',
+        'false',
+        'true',
+    ];
+
     /** @var ReflectionClass<*> */
     private ReflectionClass $model;
 
@@ -38,8 +53,10 @@ final readonly class ModelInspector
     /**
      * @param class-string $model
      */
-    public function __construct(ReflectionProvider $reflection, string $model)
-    {
+    public function __construct(
+        private ReflectionProvider $reflection,
+        string $model,
+    ) {
         $class = $reflection->getClass($model);
         $this->model = $class->getNativeReflection();
         $this->builder = self::builder($reflection, $class);
@@ -91,6 +108,41 @@ final readonly class ModelInspector
         }
 
         return null;
+    }
+
+    /**
+     * Whether a class is a backed enum; null when it is unknown.
+     */
+    public function isBackedEnum(string $class): ?bool
+    {
+        return self::existing($this->reflection, $class)?->isBackedEnum();
+    }
+
+    /**
+     * Whether ScopeReflector::fromType() takes a parameter of this type
+     * without a cast: a scalar, an array, a backed enum or a date class.
+     * Null when the type is a class that is not known.
+     */
+    public function acceptsWithoutCast(string $type): ?bool
+    {
+        if (\in_array($type, self::SCALARS, true)) {
+            return true;
+        }
+
+        if (\in_array($type, self::PSEUDO, true)) {
+            return false;
+        }
+
+        $class = self::existing($this->reflection, $type);
+
+        if (!$class instanceof ClassReflection) {
+            return null;
+        }
+
+        // A class Carbon or CarbonImmutable is, or inherits from.
+        return $class->isBackedEnum()
+            || $this->reflection->getClass(Carbon::class)->is($type)
+            || $this->reflection->getClass(CarbonImmutable::class)->is($type);
     }
 
     public function name(): string

@@ -69,7 +69,11 @@ final class ConfigurationChecker
             self::push($errors, self::count($count, $counts, $model));
         }
 
-        return $errors;
+        return [
+            ...$errors,
+            ...ScopeArgumentChecker::check($query, $model),
+            ...HiddenSortChecker::check($query, $model),
+        ];
     }
 
     /**
