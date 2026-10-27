@@ -1,2 +1,11 @@
 rules:
     - StructuraPhp\QueryBuilder\PHPStan\FlatConfigurationRule
+    - StructuraPhp\QueryBuilder\PHPStan\QueryConfigurationRule
+
+services:
+    -
+        class: StructuraPhp\QueryBuilder\PHPStan\QueryClassCollector
+        tags: [phpstan.collector]
+    -
+        class: StructuraPhp\QueryBuilder\PHPStan\ConfigurationCollector
+        tags: [phpstan.collector]

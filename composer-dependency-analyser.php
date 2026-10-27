@@ -12,8 +12,8 @@ return (new Configuration())
         __DIR__ . '/src/PHPStan',
         [ErrorType::DEV_DEPENDENCY_IN_PROD],
     )
-    ->ignoreErrorsOnPackageAndPath(
+    ->ignoreErrorsOnPackageAndPaths(
         'nikic/php-parser',
-        __DIR__ . '/src/PHPStan',
+        [__DIR__ . '/src/PHPStan', __DIR__ . '/tests/PHPStan'],
         [ErrorType::SHADOW_DEPENDENCY],
     );
