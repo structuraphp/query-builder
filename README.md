@@ -12,13 +12,32 @@
 
 ## About
 
-Turns the query string of an HTTP request into an Eloquent query: filters,
-scopes, sorting, relations and pagination.
+Your API lists need filters, sorting, relations and pagination. Writing them
+by hand in every controller is repetitive; letting the client drive the query
+is risky. Query Builder gives you both: the client composes its query from
+the URL, and **you declare exactly what it may do**, in one class.
 
-Everything the client can do is **declared** in a query class. Anything not
-declared is rejected: the client can never filter, sort or load a sensitive
-column or relation (`password`, etc.). Invalid input yields a Laravel
-validation error (422 in JSON), never a 500.
+```sql
+-- GET /articles?title[value]=laravel&title[mode]=like&popular=1&sort[date]=desc&with=author
+SELECT * FROM articles
+WHERE articles.title LIKE '%laravel%' ESCAPE '!' AND views >= 100
+ORDER BY articles.created_at DESC LIMIT 25 OFFSET 0
+SELECT id, name FROM authors WHERE authors.id IN (…)
+```
+
+Anything not declared is rejected: the client can never filter, sort or load
+a sensitive column (`password`). Invalid input is a Laravel validation error
+(422), never a 500.
+
+## Requirements
+
+| PHP Version  | Query Builder 0.x |
+|--------------|-------------------|
+| <= 8.3       | ✗ Unsupported     |
+| 8.4 / 8.5    | ✓ Supported       |
+
+- Laravel 13
+- MySQL, PostgreSQL or SQLite
 
 ## Quick Start
 
@@ -30,23 +49,7 @@ composer require structuraphp/query-builder
 
 ### 1. Declare the query
 
-A query class implements `FromModel`, then one `With*` interface per feature
-used. Each interface is optional.
-
 ```php
-use StructuraPhp\QueryBuilder\Contract\Config\FilterInterface;
-use StructuraPhp\QueryBuilder\Contract\Config\PaginationInterface;
-use StructuraPhp\QueryBuilder\Contract\Config\RelationInterface;
-use StructuraPhp\QueryBuilder\Contract\Config\ScopeInterface;
-use StructuraPhp\QueryBuilder\Contract\Config\SortInterface;
-use StructuraPhp\QueryBuilder\Contract\Query\FromModel;
-use StructuraPhp\QueryBuilder\Contract\Query\WithFilter;
-use StructuraPhp\QueryBuilder\Contract\Query\WithPaginate;
-use StructuraPhp\QueryBuilder\Contract\Query\WithRelation;
-use StructuraPhp\QueryBuilder\Contract\Query\WithScope;
-use StructuraPhp\QueryBuilder\Contract\Query\WithSort;
-use StructuraPhp\QueryBuilder\Enum\Type;
-
 final class ArticleQuery implements
     FromModel,
     WithFilter,
@@ -63,43 +66,34 @@ final class ArticleQuery implements
     public function filter(FilterInterface $filter): void
     {
         $filter->filter('title')->type(Type::String);
-        $filter->filter('views')->type(Type::Integer);
     }
 
     public function scope(ScopeInterface $scope): void
     {
-        $scope->scope('popular');
-        $scope->scope('publishedBetween');
+        $scope->scope('popular');               // Article::scopePopular()
     }
 
     public function sort(SortInterface $sort): void
     {
         $sort->sort('date')->column('created_at');
-        $sort->sort('title');
-        $sort->default('date', 'desc');
+        $sort->default('date', Direction::Desc);
     }
 
     public function relation(RelationInterface $relation): void
     {
         $relation->relation('author')->fields(['id', 'name']);
-        $relation->relation('comments');
     }
 
     public function paginate(PaginationInterface $pagination): void
     {
-        $pagination->default('cursor')->limit(25)->maxLimit(100);
+        $pagination->limit(25)->maxLimit(100);
     }
 }
 ```
 
-The class is instantiated by the Laravel container: it can receive
-dependencies in its constructor.
-
 ### 2. Create the request
 
 ```php
-use StructuraPhp\QueryBuilder\Service\QueryRequest;
-
 final class ArticleQueryRequest extends QueryRequest
 {
     protected function getQuery(): string
@@ -109,334 +103,69 @@ final class ArticleQueryRequest extends QueryRequest
 }
 ```
 
-Validation rules, messages and attributes are generated from the declaration.
-The request's `messages()` and `attributes()` methods remain available and
-take precedence over the config.
+The validation rules are generated from the declaration.
 
-### 3. Use the parameters
-
-The request only validates. `parameters()` returns a `QueryParameters`, a
-value object with no HTTP dependency, which can be passed to a domain
-service:
+### 3. Use it in a controller
 
 ```php
-// Controller
-public function index(
-    ArticleQueryRequest $request,
-    ArticleService $service,
-) {
-    return $service->list($request->parameters());
-}
-
-// Domain service
-public function list(QueryParameters $parameters)
+public function index(ArticleQueryRequest $request)
 {
-    $query = $parameters->builder(); // filters, scopes, sorting and relations
-    $query->where('tenant_id', $this->tenant->id);
+    $parameters = $request->parameters();
+    $query = $parameters->builder();    // an Eloquent Builder, still yours
+    $query->where('tenant_id', $request->user()->tenant_id);
 
     return $parameters->paginate($query);
 }
 ```
 
-`builder()` returns an Eloquent `Builder` that can still be modified.
-`paginate()` returns a `LengthAwarePaginator` (`offset` mode), a
-`CursorPaginator` (`cursor` mode) or a `Collection` (`none` mode).
-
-### Without an HTTP request
-
-From a command, a job or a test, `fromArray()` applies the same validation
-and throws a `ValidationException` if the data is invalid:
-
-```php
-use StructuraPhp\QueryBuilder\ValueObject\QueryParameters;
-
-$parameters = QueryParameters::fromArray(app(ArticleQuery::class), [
-    'title' => ['value' => 'laravel', 'mode' => 'like'],
-    'limit' => 20,
-]);
-
-$page = $parameters->paginate($parameters->builder());
-```
-
-## Requirements
-
-| PHP Version  | Query Builder 0.x |
-|--------------|-------------------|
-| <= 8.3       | ✗ Unsupported     |
-| 8.4 / 8.5    | ✓ Supported       |
-
-- Laravel 13
-- Supported engines: MySQL, PostgreSQL, SQLite
-
-## With Scramble
-
-[Scramble](https://scramble.dedoc.co) documents a `QueryRequest` like any
-form request: filters, scopes, sorts and pagination become query parameters
-(`title[value]`, `sort[date]`…). Context arguments stay hidden.
-
-## URL format
-
-### Filters
-
-The filter name is at the root of the query string:
-
-```
-?title[value]=foo&title[mode]=like&title[not]=1
-    → WHERE title NOT LIKE '%foo%'
-
-?views[value]=100&views[mode]=>
-    → WHERE views > 100
-```
-
-| Key     | Required    | Purpose                                   |
-|---------|-------------|-------------------------------------------|
-| `value` | yes         | Compared value                            |
-| `mode`  | no (`=`)    | Operator, depending on the filter type    |
-| `not`   | no          | Boolean: negates the condition            |
-
-The filter type sets the value validation and the accepted modes:
-
-| `Type`    | Validation          | Modes                       |
-|-----------|---------------------|-----------------------------|
-| `String`  | `string`            | `=`, `like`                 |
-| `Integer` | `integer`           | `=`, `>`, `<`, `>=`, `<=`   |
-| `Float`   | `numeric`           | `=`, `>`, `<`, `>=`, `<=`   |
-| `Boolean` | `boolean`           | `=`                         |
-| `Date`    | `date_format:Y-m-d` | `=`, `>`, `<`, `>=`, `<=`   |
-
-- `like` wraps the value in `%…%` and matches `%`, `_` and `!` literally. It
-  is case-insensitive (`ilike` on PostgreSQL; on MySQL, depending on the
-  column collation).
-- `Date` compares by day, even on a datetime column, without any SQL
-  function on the column: `=` becomes `col >= day AND col < next day`, so
-  the index remains usable.
-- To exclude, add `not=1` (`?title[value]=foo&title[not]=1`): there is no
-  `!=` mode.
-
-### Scopes
-
-Scopes are also at the root. Their arguments are named like the scope's PHP
-parameters, in any order:
-
-```
-?popular=1
-    → ->popular()
-
-?publishedBetween[from]=2024-01-01&publishedBetween[to]=2024-12-31
-    → ->publishedBetween(from: …, to: …)
-
-?ofTags[tags][]=php&ofTags[tags][]=laravel
-    → ->ofTags(['php', 'laravel'])
-```
-
-- A scope without arguments takes a boolean and is applied only if true.
-- A scope missing from the URL is never applied.
-- An argument missing from the URL takes the config default, then the PHP
-  signature default. Without a default, it is required.
-
-### Sorting
-
-```
-?sort[date]=desc&sort[title]=asc
-    → ORDER BY created_at DESC, title ASC
-```
-
-Key order sets the priority. Without `sort`, the config's default sort
-applies. As soon as the client sends `sort`, it replaces it entirely.
-
-### Relations
-
-```
-?with=author,comments
-```
-
-Each relation must be declared. The loaded columns are set by the config
-(`fields()`), never by the client.
-
-### Pagination
-
-| Parameter    | Default   | Purpose                                      |
-|--------------|-----------|----------------------------------------------|
-| `pagination` | `offset`  | Mode: `offset`, `cursor` or `none`           |
-| `page`       | `1`       | Page number (`offset` mode)                  |
-| `cursor`     | —         | Cursor (`cursor` mode)                       |
-| `limit`      | `50`      | Items per page, capped by `maxLimit`         |
-
-By default, only `offset` and `cursor` are allowed, with a `maxLimit` of 100.
-The `none` mode must be explicitly allowed with `allow()`.
-
-### Reserved keys
-
-`with`, `sort`, `pagination`, `page`, `cursor` and `limit` cannot be used as
-a filter or scope name. Other unknown keys (`utm_source`…) are ignored.
-
-## Configuration
-
-### Filters
-
-```php
-$filter->filter('statut')               // public name, in the URL
-    ->column('status')                  // actual column (default: the name)
-    ->type(Type::String)                // required
-    ->rules(['in:draft,published'])     // Laravel rules on top of the type
-    ->messages(['in' => 'Invalid status.'])
-    ->attribute('statut');              // name shown in errors
-```
-
-### Scopes
-
-The scope is a `scopeXxx()` or a `#[Scope]` method of the model, or a public
-method of the model's custom builder (`newEloquentBuilder()` or
-`#[UseEloquentBuilder]`). Arguments are converted according to the
-signature: `int`, `float`, `bool`, `string`, `array`, backed enum
-(`::from()`), `CarbonImmutable` or `Carbon` (`Y-m-d` format).
-
-Like in Laravel, a builder method wins over a model scope of the same name,
-and its wheres are not grouped: wrap its `OR` conditions in a `where()`
-closure. Eloquent's own builder methods (`delete()`…) are never scopes.
-
-All options are written as **named arguments**, by parameter name:
-
-```php
-$scope->scope('recent')                 // public name
-    ->method('publishedAfter')          // actual method (default: the name)
-    ->default(date: fn () => now()->subWeek())
-    ->rules(date: ['after:2020-01-01'])
-    ->messages(date: ['after' => 'Too old.'])
-    ->attribute(date: 'start date');
-
-$scope->scope('ofTags')
-    ->rules(tags: ['max:10'])           // the whole array
-    ->each(tags: ['string']);           // each item
-
-$scope->scope('inRanges')               // any structure, like Laravel
-    ->nested(ranges: [
-        '*' => ['array:min,max'],
-        '*.min' => ['required', 'integer'],
-        '*.max' => ['required', 'integer', 'gte:inRanges.ranges.*.min'],
-    ])
-    ->messages(ranges: ['*.min.required' => 'Min is required.'])
-    ->attribute(ranges: ['*.min' => 'minimum', '*.max' => 'maximum']);
-
-$scope->scope('near')                   // untyped parameters
-    ->cast(lat: Type::Float, lng: Type::Float);
-
-$scope->scope('ofStatus')
-    ->cast(status: Status::class);      // backed enum
-
-$scope->scope('priced')
-    ->cast(amount: fn (string $v) => Money::parse($v));
-```
-
-- `nested()` takes Laravel rules by dot path inside the argument (`*.min`,
-  `geo.lat`, `tags.*`), only applied when the argument is given. A rule that
-  points to another field (`gte:`, `required_with:`…) uses its full path.
-  `each(x: [...])` is a shortcut for `nested(x: ['*' => [...]])`.
-  `messages()` and `attribute()` take the same paths: `attribute()` takes a
-  name for the argument itself, or names by path (`['*.min' => 'minimum']`).
-- An `array` argument without `each()` or `nested()` is a flat list: an item
-  that is itself an array is rejected.
-- `cast()` is required for an untyped, `mixed`, union, non-backed enum or
-  any other class parameter.
-- A `cast()` closure only runs once the rules of its argument passed,
-  `nested()` included, and receives the request value: it builds an object
-  from a validated structure, e.g.
-  `cast(range: fn (array $v) => new Range((int) $v['min'], (int) $v['max']))`.
-  If it throws an exception, that is a validation error.
-- A `default()` value can be fixed or a closure. A mutable date (`now()`) is
-  converted to the class expected by the scope.
-
-### Context
-
-Some scope arguments must come from the code, never from the client: the
-current user, ids computed by a service… Declare them with `context()`:
-
-```php
-// scopeForUser(Builder $query, string $search, User $user, array $groupIds)
-$scope->scope('forUser')->context('user', 'groupIds');
-```
-
-The URL only carries `search` (`?forUser[search]=foo`): a `forUser[user]`
-key sent by the client is ignored. The code gives the context, by scope name,
-when building the query:
-
-```php
-$query = $parameters->builder(context: [
-    'forUser' => [
-        'user' => $user,
-        'groupIds' => fn () => $groups->idsFor($user),
-    ],
-]);
-```
-
-- A closure is only called if the client requested the scope, unless the
-  parameter itself is typed `Closure` or `callable`.
-- The closure receives, by name, the scope arguments coming from the URL,
-  once cast and defaulted (an enum, a date…):
-  `'groupIds' => fn (string $search) => $groups->idsMatching($user, $search)`.
-  A closure parameter that is not one of them, and has no default, throws an
-  `InvalidArgumentException`.
-- A scope whose arguments all come from the context is a boolean toggle:
-  `?mine=1` for `scopeMine(Builder $query, User $user)`.
-- `default()` or the PHP default replaces a missing context; otherwise
-  applying the scope throws a `LogicException`.
-- A context key for an undeclared scope, or for an argument not declared with
-  `context()`, throws an `InvalidArgumentException`.
-
-### Sorting
-
-```php
-$sort->sort('date')->column('created_at');
-$sort->sort('title');
-$sort->default('date', 'desc')->default('title', 'asc');
-```
-
-In `cursor` mode, the primary key is added as the last sort criterion so
-that pages remain stable.
-
-### Relations
-
-```php
-$relation->relation('author')->fields(['id', 'name']);
-$relation->relation('author.profile');  // nested relation
-```
-
-Remember to include in `fields()` the keys the relation needs.
-
-### Pagination
-
-```php
-$pagination
-    ->default('cursor')                 // default mode
-    ->limit(25)                         // default items per page
-    ->maxLimit(100)                     // accepted limit
-    ->allow('offset', 'cursor', 'none');
-```
-
-## Configuration errors
-
-An inconsistent config throws a
-`StructuraPhp\QueryBuilder\Exception\ConfigurationException` when the query
-is read, before the client input is validated:
-
-- invalid name (only letters, digits and `_`, not starting with a digit),
-  reserved or declared twice;
-- filter without `type()`;
-- scope or relation that does not exist on the model;
-- scope option for an argument that does not exist, or passed without a name;
-- `cast()`, `rules()`, `each()`, `nested()`, `messages()` or `attribute()` on
-  a context argument;
-- scope parameter neither typed nor cast, or `cast()` that is not a `Type`,
-  a backed enum or a closure;
-- undeclared default sort or direction other than `asc`/`desc`;
-- unknown pagination mode, default mode not allowed, `limit` outside
-  `1…maxLimit`.
-
-## Known limitations
-
-- No aliases for relations.
-- No filter on a relation column (`author.name`), no `OR` groups, no `in`
-  mode: use a scope.
-- Scopes defined as builder macros are not supported.
-- An integer value outside the column range (PostgreSQL `int4`) is not
-  detected: add a `max:` rule to the filter.
+That's it: the request above returns a paginated, filtered and sorted list of
+articles, with their authors.
+
+## Features
+
+- **🔒 Declared, never guessed.** The client only uses what the query class
+  declares. Public names stay apart from the schema (`column()`), and the
+  loaded columns of a relation are yours (`fields()`).
+- **✅ Laravel validation.** Rules, messages and attributes are generated:
+  the client gets field-level 422 errors. Add your own rules and messages,
+  and validate without HTTP too (`QueryParameters::fromArray()`).
+- **🔎 Typed filters.** String, integer, float, boolean and date filters with
+  their operators; `like` searches escaped and case-insensitive; date
+  comparisons by day that keep your indexes usable.
+- **🧩 Scopes with real arguments.** Call model scopes, `#[Scope]` methods or
+  methods of your custom builder. Arguments are validated and converted from
+  the PHP signature: enums, dates, arrays, nested structures, or your own
+  objects through a cast.
+- **🔐 Server-side context.** Give scope arguments from the code (the
+  current user, ids computed by a service), never from the client, and
+  compute them only when the scope is requested.
+- **↕️ Sorting.** Declared sorts on columns or relation counts, priority
+  from the URL, default sorts.
+- **🔗 Relations.** The client picks the relations to eager load or count,
+  among the declared ones.
+- **📄 Pagination.** Offset, cursor (stable, without count query) or none,
+  with a limit the client cannot exceed.
+- **🧱 Domain-friendly.** `QueryParameters` is a value object without HTTP
+  dependency: pass it to a service, keep refining the builder.
+- **📘 OpenAPI ready.** [Scramble](https://scramble.dedoc.co) documents your
+  query requests like any form request.
+
+## 📖 Documentation
+
+The [usage guide](docs/README.md) details every feature with its
+configuration, example URLs, and the SQL or validation error they produce:
+[filters](docs/filters.md), [scopes](docs/scopes.md),
+[context](docs/context.md), [sorting](docs/sorting.md),
+[relations](docs/relations.md) and [pagination](docs/pagination.md).
+The [PHPStan rules](docs/phpstan.md) report configuration errors in CI.
+
+## 🤖 AI agents
+
+With [Laravel Boost](https://laravel.com/docs/13.x/boost),
+`php artisan boost:install` gives your AI agents the library's guidelines and
+its `structura-query-builder` skill.
+
+## License
+
+Query Builder is open-source software licensed under the
+[MIT license](LICENSE).

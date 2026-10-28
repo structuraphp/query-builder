@@ -1,0 +1,9 @@
+# A project that uses the rules, analysed by `make phpstan-smoke`.
+includes:
+    - ../../../extension.neon
+
+parameters:
+    level: max
+    tmpDir: ../../../.cache/phpstan-smoke
+    paths:
+        - .

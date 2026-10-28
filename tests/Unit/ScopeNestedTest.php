@@ -9,6 +9,9 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use RuntimeException;
 use StructuraPhp\QueryBuilder\Contract\Config\ScopeInterface;
+use StructuraPhp\QueryBuilder\Enum\Type;
+use StructuraPhp\QueryBuilder\Service\Definition;
+use StructuraPhp\QueryBuilder\Service\ValidationCompiler;
 use StructuraPhp\QueryBuilder\ValueObject\QueryParameters;
 use Tests\StructuraPhp\QueryBuilder\Fixtures\Queries\ConfigurableQuery;
 use Tests\StructuraPhp\QueryBuilder\Fixtures\Range;
@@ -76,26 +79,80 @@ final class ScopeNestedTest extends TestCase
         $missing = $this->errors(['viewsWithin' => ['range' => [
             'max' => '100',
         ]]]);
+        $defaulted = $this->errors(
+            ['ofStatusAmong' => ['status' => 'draft']],
+            static function (ScopeInterface $scope): void {
+                $scope->scope('ofStatusAmong')
+                    ->default(ids: [1])
+                    ->nested(ids: ['first' => ['required']]);
+            },
+        );
 
         self::assertSame([], $absent);
         self::assertArrayHasKey('viewsWithin.range.min', $missing);
+        self::assertSame([], $defaulted);
+    }
+
+    /**
+     * `exclude_without` is a dependent rule: on each item of a long list, it
+     * made validation quadratic.
+     */
+    public function testItemRulesDoNotDependOnTheArgument(): void
+    {
+        $definition = Definition::fromQuery(
+            new ConfigurableQuery(scope: $this->scopes(...)),
+        );
+
+        $rules = new ValidationCompiler($definition)->rules();
+
+        self::assertSame(
+            ['required', 'integer'],
+            $rules['inRanges.ranges.*.min'] ?? null,
+        );
+        self::assertSame(
+            ['exclude_without:viewsWithin.range', 'required', 'integer'],
+            $rules['viewsWithin.range.min'] ?? null,
+        );
+    }
+
+    public function testCastIsSkippedWhenTheArgumentIsAbsent(): void
+    {
+        $never = static fn (mixed $v): float => throw new RuntimeException(
+            'A missing argument is never cast.',
+        );
+
+        $titles = $this->titles(
+            ['near' => ['lng' => '100']],
+            static function (ScopeInterface $scope) use ($never): void {
+                $scope->scope('near')
+                    ->cast(lat: $never, lng: Type::Float)
+                    ->default(lat: 10.0);
+            },
+        );
+
+        self::assertSame(['Bar'], $titles);
     }
 
     public function testNestedMessages(): void
     {
         $errors = $this->errors(['inRanges' => ['ranges' => [
             ['max' => '10'],
+            ['min' => '1'],
         ]]]);
 
         self::assertSame(
             ['Min obligatoire.'],
             $errors['inRanges.ranges.0.min'] ?? null,
         );
+        self::assertSame(
+            ['Max obligatoire.'],
+            $errors['inRanges.ranges.1.max'] ?? null,
+        );
     }
 
     public function testNestedAttributes(): void
     {
-        $scope = function (ScopeInterface $scope): void {
+        $scope = static function (ScopeInterface $scope): void {
             $scope->scope('inRanges')
                 ->nested(ranges: ['*.min' => ['required']])
                 ->attribute(ranges: 'plages')
@@ -120,7 +177,7 @@ final class ScopeNestedTest extends TestCase
 
     public function testArrayArgumentRejectsNestedArraysByDefault(): void
     {
-        $scope = function (ScopeInterface $scope): void {
+        $scope = static function (ScopeInterface $scope): void {
             $scope->scope('ofStatuses');
         };
 
@@ -134,7 +191,7 @@ final class ScopeNestedTest extends TestCase
 
     public function testEachAllowsNestedArrays(): void
     {
-        $scope = function (ScopeInterface $scope): void {
+        $scope = static function (ScopeInterface $scope): void {
             $scope->scope('inRanges')->each(ranges: ['array']);
         };
 
@@ -167,9 +224,11 @@ final class ScopeNestedTest extends TestCase
 
     public function testCastFailureOnValidDataIsAValidationError(): void
     {
-        $scope = function (ScopeInterface $scope): void {
+        $scope = static function (ScopeInterface $scope): void {
             $scope->scope('viewsInRange')->cast(
-                range: fn (mixed $v): Range => throw new RuntimeException(),
+                range: static fn (
+                    mixed $v,
+                ): Range => throw new RuntimeException(),
             );
         };
 
@@ -227,7 +286,10 @@ final class ScopeNestedTest extends TestCase
                 '*.min' => ['required', 'integer'],
                 '*.max' => ['required', 'integer', 'gte:inRanges.ranges.*.min'],
             ])
-            ->messages(ranges: ['*.min.required' => 'Min obligatoire.']);
+            ->messages(ranges: [
+                '*.min.required' => 'Min obligatoire.',
+                '*.max.required' => 'Max obligatoire.',
+            ]);
         $scope->scope('viewsWithin')->nested(range: [
             'min' => ['required', 'integer'],
             'max' => ['required', 'integer'],

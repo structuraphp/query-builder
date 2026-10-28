@@ -7,6 +7,7 @@ namespace Tests\StructuraPhp\QueryBuilder\Fixtures\Queries;
 use StructuraPhp\QueryBuilder\Contract\Config\PaginationInterface;
 use StructuraPhp\QueryBuilder\Contract\Query\FromModel;
 use StructuraPhp\QueryBuilder\Contract\Query\WithPaginate;
+use StructuraPhp\QueryBuilder\Enum\PaginationMode;
 use Tests\StructuraPhp\QueryBuilder\Fixtures\Article;
 
 final class UnboundedArticleQuery implements FromModel, WithPaginate
@@ -18,6 +19,10 @@ final class UnboundedArticleQuery implements FromModel, WithPaginate
 
     public function paginate(PaginationInterface $pagination): void
     {
-        $pagination->allow('offset', 'cursor', 'none');
+        $pagination->allow(
+            PaginationMode::Offset,
+            PaginationMode::Cursor,
+            PaginationMode::None,
+        );
     }
 }

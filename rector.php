@@ -16,12 +16,17 @@ return static function (RectorConfig $rectorConfig): void {
         __DIR__ . '/tests',
     ]);
 
+    $rectorConfig->skip([
+        __DIR__ . '/tests/PHPStan/data',
+        __DIR__ . '/tests/PHPStan/Smoke',
+    ]);
+
     $rectorConfig->phpVersion(PhpVersion::PHP_84);
 
     $rectorConfig->sets([
         SetList::CODING_STYLE,
         SetList::CODE_QUALITY,
-        SetList::PHP_82,
+        SetList::PHP_84,
         SetList::DEAD_CODE,
         SetList::EARLY_RETURN,
         SetList::TYPE_DECLARATION,

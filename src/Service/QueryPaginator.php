@@ -10,9 +10,10 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\QueryException;
+use Illuminate\Pagination\Cursor;
 use Illuminate\Validation\ValidationException;
 use LogicException;
-use StructuraPhp\QueryBuilder\Enum\Type;
+use StructuraPhp\QueryBuilder\Enum\PaginationMode;
 use UnexpectedValueException;
 
 final class QueryPaginator
@@ -33,17 +34,28 @@ final class QueryPaginator
         array $validated,
     ): Collection|CursorPaginator|LengthAwarePaginator {
         $pagination = $definition->pagination;
-        $limit = (int) Type::scalar($validated['limit'] ?? $pagination->limit);
-        $page = (int) Type::scalar($validated['page'] ?? 1);
+        $limit = (int) TypeCaster::scalar(
+            $validated['limit'] ?? $pagination->limit,
+        );
+        $page = (int) TypeCaster::scalar($validated['page'] ?? 1);
         $cursor = $validated['cursor'] ?? null;
 
-        return match ($validated['pagination'] ?? $pagination->default) {
-            'none' => $query->get(),
-            'cursor' => $this->cursor($definition, $query, $limit, $cursor),
-            'offset' => $query
+        $mode = PaginationMode::tryFrom((string) TypeCaster::scalar(
+            $validated['pagination'] ?? $pagination->default->value,
+        ));
+
+        return match ($mode) {
+            PaginationMode::None => $query->get(),
+            PaginationMode::Cursor => $this->cursor(
+                $definition,
+                $query,
+                $limit,
+                $cursor,
+            ),
+            PaginationMode::Offset => $query
                 ->paginate($limit, ['*'], 'page', $page)
                 ->withQueryString(),
-            default => throw new LogicException('Unvalidated pagination mode.'),
+            null => throw new LogicException('Unvalidated pagination mode.'),
         };
     }
 
@@ -58,20 +70,14 @@ final class QueryPaginator
         int $limit,
         mixed $cursor,
     ): CursorPaginator {
-        $keys = [
-            $definition->model->getKeyName(),
-            $definition->model->getQualifiedKeyName(),
-        ];
-        $sorted = array_any(
-            $query->getQuery()->orders ?? [],
-            fn (mixed $order): bool => \is_array($order)
-                && \in_array($order['column'] ?? null, $keys, true),
-        );
-        if (!$sorted) {
-            $query->getQuery()->orderBy($keys[1]);
-        }
+        $this->orderByKey($definition, $query);
 
         $cursor = \is_string($cursor) ? $cursor : null;
+        // Laravel reads an undecodable cursor as the first page, and binds
+        // the items of a list as if they were several values.
+        if ($cursor !== null && !$this->readable($cursor)) {
+            throw $this->invalidCursor();
+        }
 
         try {
             return $query
@@ -84,6 +90,36 @@ final class QueryPaginator
             // (e.g. text against a PostgreSQL bigint).
             throw $cursor === null ? $e : $this->invalidCursor();
         }
+    }
+
+    /**
+     * @param Builder<Model> $query
+     */
+    private function orderByKey(Definition $definition, Builder $query): void
+    {
+        $keys = [
+            $definition->model->getKeyName(),
+            $definition->model->getQualifiedKeyName(),
+        ];
+        $sorted = array_any(
+            $query->getQuery()->orders ?? [],
+            static fn (mixed $order): bool => \is_array($order)
+                && \in_array($order['column'] ?? null, $keys, true),
+        );
+        if (!$sorted) {
+            $query->getQuery()->orderBy($keys[1]);
+        }
+    }
+
+    private function readable(string $cursor): bool
+    {
+        $parameters = Cursor::fromEncoded($cursor)?->toArray();
+
+        return $parameters !== null && array_all(
+            $parameters,
+            static fn (mixed $value): bool => $value === null
+                || \is_scalar($value),
+        );
     }
 
     private function invalidCursor(): ValidationException

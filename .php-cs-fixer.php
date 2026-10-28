@@ -15,6 +15,7 @@ $finder = Finder::create()
         __DIR__ . '/src',
         __DIR__ . '/tests',
     ])
+    ->exclude('PHPStan/data')
     ->append([
         __DIR__ . '/rector.php',
         __FILE__,
@@ -29,6 +30,7 @@ return $config
         // Added rules
         'declare_strict_types' => true,
         'phpdoc_line_span' => ['property' => 'single', 'const' => 'single'],
+        'static_lambda' => true,
 
         // Override @PhpCsFixer
         // Lines stay under 80 characters: a long `implements` list wraps.

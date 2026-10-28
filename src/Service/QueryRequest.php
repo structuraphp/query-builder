@@ -14,7 +14,7 @@ use StructuraPhp\QueryBuilder\ValueObject\QueryParameters;
 
 abstract class QueryRequest extends FormRequest
 {
-    private Definition $definition;
+    private ?Definition $definition = null;
 
     /**
      * @return array<string, list<mixed>>
@@ -24,13 +24,28 @@ abstract class QueryRequest extends FormRequest
         return new ValidationCompiler($this->definition())->rules();
     }
 
+    /**
+     * Only the query string: a JSON body on a GET request would bypass PHP's
+     * `max_input_vars` and the length limit of the URL.
+     *
+     * @return array<string, mixed>
+     */
+    #[Override]
+    public function validationData(): array
+    {
+        /** @var array<string, mixed> */
+        return $this->query->all();
+    }
+
     public function parameters(): QueryParameters
     {
-        return new QueryParameters(
-            $this->definition(),
-            $this->validatedQuery(),
-            $this->queryData(),
-        );
+        /** @var array<string, mixed> $validated */
+        $validated = $this->validator->validated();
+
+        /** @var array<string, mixed> $data */
+        $data = $this->validationData();
+
+        return new QueryParameters($this->definition(), $validated, $data);
     }
 
     /**
@@ -55,9 +70,14 @@ abstract class QueryRequest extends FormRequest
     ): Validator {
         $compiler = new ValidationCompiler($this->definition());
 
+        /** @var array<string, mixed> $data */
+        $data = $this->validationData();
+
+        /** @var array<string, mixed> $rules */
+        $rules = $this->validationRules();
         $validator = $factory->make(
-            $this->validationData(),
-            $this->validationRules(),
+            $data,
+            $compiler->forData($rules, $data),
             array_merge($compiler->messages(), $this->messages()),
             array_merge($compiler->attributes(), $this->attributes()),
         );
@@ -74,23 +94,5 @@ abstract class QueryRequest extends FormRequest
         }
 
         return $validator;
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function validatedQuery(): array
-    {
-        /** @var array<string, mixed> */
-        return $this->validator->validated();
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function queryData(): array
-    {
-        /** @var array<string, mixed> */
-        return $this->validationData();
     }
 }

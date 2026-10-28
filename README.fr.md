@@ -12,13 +12,33 @@
 
 ## À propos
 
-Transforme la query string d'une requête HTTP en requête Eloquent :
-filtres, scopes, tri, relations et pagination.
+Les listes de votre API ont besoin de filtres, de tris, de relations et de
+pagination. Les écrire à la main dans chaque contrôleur est répétitif ;
+laisser le client piloter la requête est risqué. Query Builder vous donne
+les deux : le client compose sa requête depuis l'URL, et **vous déclarez
+exactement ce qu'il a le droit de faire**, dans une seule classe.
 
-Tout ce que le client peut faire est **déclaré** dans une classe de query.
-Ce qui n'est pas déclaré est refusé : le client ne peut jamais filtrer, trier
-ou charger une colonne ou une relation sensible (`password`, etc.). Une entrée
-invalide donne une erreur de validation Laravel (422 en JSON), jamais une 500.
+```sql
+-- GET /articles?title[value]=laravel&title[mode]=like&popular=1&sort[date]=desc&with=author
+SELECT * FROM articles
+WHERE articles.title LIKE '%laravel%' ESCAPE '!' AND views >= 100
+ORDER BY articles.created_at DESC LIMIT 25 OFFSET 0
+SELECT id, name FROM authors WHERE authors.id IN (…)
+```
+
+Ce qui n'est pas déclaré est refusé : le client ne peut jamais filtrer,
+trier ou charger une colonne sensible (`password`). Une entrée invalide
+donne une erreur de validation Laravel (422), jamais une 500.
+
+## Prérequis
+
+| Version de PHP | Query Builder 0.x |
+|----------------|-------------------|
+| <= 8.3         | ✗ Non supportée   |
+| 8.4 / 8.5      | ✓ Supportée       |
+
+- Laravel 13
+- MySQL, PostgreSQL ou SQLite
 
 ## Démarrage rapide
 
@@ -30,23 +50,7 @@ composer require structuraphp/query-builder
 
 ### 1. Déclarer la query
 
-Une classe de query implémente `FromModel`, puis une interface `With*` par
-fonctionnalité utilisée. Chaque interface est facultative.
-
 ```php
-use StructuraPhp\QueryBuilder\Contract\Config\FilterInterface;
-use StructuraPhp\QueryBuilder\Contract\Config\PaginationInterface;
-use StructuraPhp\QueryBuilder\Contract\Config\RelationInterface;
-use StructuraPhp\QueryBuilder\Contract\Config\ScopeInterface;
-use StructuraPhp\QueryBuilder\Contract\Config\SortInterface;
-use StructuraPhp\QueryBuilder\Contract\Query\FromModel;
-use StructuraPhp\QueryBuilder\Contract\Query\WithFilter;
-use StructuraPhp\QueryBuilder\Contract\Query\WithPaginate;
-use StructuraPhp\QueryBuilder\Contract\Query\WithRelation;
-use StructuraPhp\QueryBuilder\Contract\Query\WithScope;
-use StructuraPhp\QueryBuilder\Contract\Query\WithSort;
-use StructuraPhp\QueryBuilder\Enum\Type;
-
 final class ArticleQuery implements
     FromModel,
     WithFilter,
@@ -63,43 +67,34 @@ final class ArticleQuery implements
     public function filter(FilterInterface $filter): void
     {
         $filter->filter('title')->type(Type::String);
-        $filter->filter('views')->type(Type::Integer);
     }
 
     public function scope(ScopeInterface $scope): void
     {
-        $scope->scope('popular');
-        $scope->scope('publishedBetween');
+        $scope->scope('popular');               // Article::scopePopular()
     }
 
     public function sort(SortInterface $sort): void
     {
         $sort->sort('date')->column('created_at');
-        $sort->sort('title');
-        $sort->default('date', 'desc');
+        $sort->default('date', Direction::Desc);
     }
 
     public function relation(RelationInterface $relation): void
     {
         $relation->relation('author')->fields(['id', 'name']);
-        $relation->relation('comments');
     }
 
     public function paginate(PaginationInterface $pagination): void
     {
-        $pagination->default('cursor')->limit(25)->maxLimit(100);
+        $pagination->limit(25)->maxLimit(100);
     }
 }
 ```
 
-La classe est instanciée par le container Laravel : elle peut recevoir des
-dépendances dans son constructeur.
-
 ### 2. Créer la request
 
 ```php
-use StructuraPhp\QueryBuilder\Service\QueryRequest;
-
 final class ArticleQueryRequest extends QueryRequest
 {
     protected function getQuery(): string
@@ -109,340 +104,72 @@ final class ArticleQueryRequest extends QueryRequest
 }
 ```
 
-Les règles de validation, les messages et les attributs sont générés à partir
-de la déclaration. Les méthodes `messages()` et `attributes()` de la request
-restent disponibles et passent avant celles de la config.
+Les règles de validation sont générées à partir de la déclaration.
 
-### 3. Utiliser les paramètres
-
-La request ne fait que valider. `parameters()` renvoie un `QueryParameters`,
-un value object sans dépendance HTTP, que l'on peut passer à un service de
-domaine :
+### 3. L'utiliser dans un contrôleur
 
 ```php
-// Contrôleur
-public function index(
-    ArticleQueryRequest $request,
-    ArticleService $service,
-) {
-    return $service->list($request->parameters());
-}
-
-// Service de domaine
-public function list(QueryParameters $parameters)
+public function index(ArticleQueryRequest $request)
 {
-    $query = $parameters->builder(); // filtres, scopes, tri et relations
-    $query->where('tenant_id', $this->tenant->id);
+    $parameters = $request->parameters();
+    $query = $parameters->builder();    // un Builder Eloquent, toujours à vous
+    $query->where('tenant_id', $request->user()->tenant_id);
 
     return $parameters->paginate($query);
 }
 ```
 
-`builder()` renvoie un `Builder` Eloquent encore modifiable. `paginate()`
-renvoie un `LengthAwarePaginator` (mode `offset`), un `CursorPaginator`
-(mode `cursor`) ou une `Collection` (mode `none`).
-
-### Sans requête HTTP
-
-Depuis une commande, un job ou un test, `fromArray()` applique la même
-validation et lève une `ValidationException` si les données sont invalides :
-
-```php
-use StructuraPhp\QueryBuilder\ValueObject\QueryParameters;
-
-$parameters = QueryParameters::fromArray(app(ArticleQuery::class), [
-    'title' => ['value' => 'laravel', 'mode' => 'like'],
-    'limit' => 20,
-]);
-
-$page = $parameters->paginate($parameters->builder());
-```
-
-## Prérequis
-
-| Version de PHP | Query Builder 0.x |
-|----------------|-------------------|
-| <= 8.3         | ✗ Non supportée   |
-| 8.4 / 8.5      | ✓ Supportée       |
-
-- Laravel 13
-- Moteurs supportés : MySQL, PostgreSQL, SQLite
-
-## Avec Scramble
-
-[Scramble](https://scramble.dedoc.co) documente une `QueryRequest` comme
-n'importe quelle form request : filtres, scopes, tris et pagination
-deviennent des paramètres de query (`title[value]`, `sort[date]`…). Les
-arguments de contexte restent cachés.
-
-## Format de l'URL
-
-### Filtres
-
-Le nom du filtre est à la racine de la query string :
-
-```
-?title[value]=foo&title[mode]=like&title[not]=1
-    → WHERE title NOT LIKE '%foo%'
-
-?views[value]=100&views[mode]=>
-    → WHERE views > 100
-```
-
-| Clé     | Obligatoire | Rôle                                      |
-|---------|-------------|-------------------------------------------|
-| `value` | oui         | Valeur comparée                           |
-| `mode`  | non (`=`)   | Opérateur, selon le type du filtre        |
-| `not`   | non         | Booléen : inverse la condition            |
-
-Le type du filtre fixe la validation de la valeur et les modes acceptés :
-
-| `Type`    | Validation          | Modes                       |
-|-----------|---------------------|-----------------------------|
-| `String`  | `string`            | `=`, `like`                 |
-| `Integer` | `integer`           | `=`, `>`, `<`, `>=`, `<=`   |
-| `Float`   | `numeric`           | `=`, `>`, `<`, `>=`, `<=`   |
-| `Boolean` | `boolean`           | `=`                         |
-| `Date`    | `date_format:Y-m-d` | `=`, `>`, `<`, `>=`, `<=`   |
-
-- `like` entoure la valeur de `%…%` et compare `%`, `_` et `!`
-  littéralement. Il ignore la casse (`ilike` sur PostgreSQL ; sur MySQL,
-  selon la collation de la colonne).
-- `Date` compare au jour, même sur une colonne date-heure, sans fonction
-  SQL sur la colonne : `=` devient `col >= jour AND col < lendemain`,
-  l'index reste utilisable.
-- Pour exclure, on ajoute `not=1` (`?title[value]=foo&title[not]=1`) : il
-  n'y a pas de mode `!=`.
-
-### Scopes
-
-Les scopes sont aussi à la racine. Leurs arguments sont nommés comme les
-paramètres PHP du scope, dans n'importe quel ordre :
-
-```
-?popular=1
-    → ->popular()
-
-?publishedBetween[from]=2024-01-01&publishedBetween[to]=2024-12-31
-    → ->publishedBetween(from: …, to: …)
-
-?ofTags[tags][]=php&ofTags[tags][]=laravel
-    → ->ofTags(['php', 'laravel'])
-```
-
-- Un scope sans argument prend un booléen et n'est appliqué que s'il est vrai.
-- Un scope absent de l'URL n'est jamais appliqué.
-- Un argument absent de l'URL prend la valeur par défaut de la config, puis
-  celle de la signature PHP. Sans valeur par défaut, il est obligatoire.
-
-### Tri
-
-```
-?sort[date]=desc&sort[title]=asc
-    → ORDER BY created_at DESC, title ASC
-```
-
-L'ordre des clés donne la priorité. Sans `sort`, le tri par défaut de la
-config s'applique. Dès que le client envoie `sort`, il le remplace
-entièrement.
-
-### Relations
-
-```
-?with=author,comments
-```
-
-Chaque relation doit être déclarée. Les colonnes chargées sont fixées par la
-config (`fields()`), jamais par le client.
-
-### Pagination
-
-| Paramètre    | Défaut    | Rôle                                         |
-|--------------|-----------|----------------------------------------------|
-| `pagination` | `offset`  | Mode : `offset`, `cursor` ou `none`          |
-| `page`       | `1`       | Numéro de page (mode `offset`)               |
-| `cursor`     | —         | Curseur (mode `cursor`)                      |
-| `limit`      | `50`      | Éléments par page, borné par `maxLimit`      |
-
-Par défaut, seuls `offset` et `cursor` sont autorisés, avec un `maxLimit` de
-100. Le mode `none` doit être autorisé explicitement avec `allow()`.
-
-### Clés réservées
-
-`with`, `sort`, `pagination`, `page`, `cursor` et `limit` ne peuvent pas être
-utilisées comme nom de filtre ou de scope. Les autres clés inconnues
-(`utm_source`…) sont ignorées.
-
-## Configuration
-
-### Filtres
-
-```php
-$filter->filter('statut')               // nom public, dans l'URL
-    ->column('status')                  // colonne réelle (défaut : le nom)
-    ->type(Type::String)                // obligatoire
-    ->rules(['in:draft,published'])     // règles Laravel en plus du type
-    ->messages(['in' => 'Statut invalide.'])
-    ->attribute('statut');              // nom affiché dans les erreurs
-```
-
-### Scopes
-
-Le scope est un `scopeXxx()` ou une méthode `#[Scope]` du modèle, ou une
-méthode publique du Builder personnalisé du modèle (`newEloquentBuilder()`
-ou `#[UseEloquentBuilder]`). Les arguments sont convertis d'après la
-signature : `int`, `float`, `bool`, `string`, `array`, enum backed
-(`::from()`), `CarbonImmutable` ou `Carbon` (format `Y-m-d`).
-
-Comme dans Laravel, une méthode du Builder l'emporte sur un scope du modèle
-du même nom, et ses `where` ne sont pas regroupés : encadrez ses conditions
-`OR` dans une closure `where()`. Les méthodes propres à Eloquent
-(`delete()`…) ne sont jamais des scopes.
-
-Toutes les options s'écrivent en **arguments nommés**, par nom de paramètre :
-
-```php
-$scope->scope('recent')                 // nom public
-    ->method('publishedAfter')          // méthode réelle (défaut : le nom)
-    ->default(date: fn () => now()->subWeek())
-    ->rules(date: ['after:2020-01-01'])
-    ->messages(date: ['after' => 'Trop ancien.'])
-    ->attribute(date: 'date de début');
-
-$scope->scope('ofTags')
-    ->rules(tags: ['max:10'])           // le tableau entier
-    ->each(tags: ['string']);           // chaque élément
-
-$scope->scope('inRanges')               // toute structure, comme Laravel
-    ->nested(ranges: [
-        '*' => ['array:min,max'],
-        '*.min' => ['required', 'integer'],
-        '*.max' => ['required', 'integer', 'gte:inRanges.ranges.*.min'],
-    ])
-    ->messages(ranges: ['*.min.required' => 'Min obligatoire.'])
-    ->attribute(ranges: ['*.min' => 'minimum', '*.max' => 'maximum']);
-
-$scope->scope('near')                   // paramètres non typés
-    ->cast(lat: Type::Float, lng: Type::Float);
-
-$scope->scope('ofStatus')
-    ->cast(status: Status::class);      // enum backed
-
-$scope->scope('priced')
-    ->cast(amount: fn (string $v) => Money::parse($v));
-```
-
-- `nested()` prend des règles Laravel par chemin pointé dans l'argument
-  (`*.min`, `geo.lat`, `tags.*`), appliquées seulement si l'argument est
-  fourni. Une règle qui cite un autre champ (`gte:`, `required_with:`…)
-  utilise son chemin complet. `each(x: [...])` est un raccourci pour
-  `nested(x: ['*' => [...]])`. `messages()` et `attribute()` prennent les
-  mêmes chemins : `attribute()` prend un nom pour l'argument lui-même, ou des
-  noms par chemin (`['*.min' => 'minimum']`).
-- Un argument `array` sans `each()` ni `nested()` est une liste plate : un
-  élément qui est lui-même un tableau est rejeté.
-- `cast()` est obligatoire pour un paramètre non typé, `mixed`, union, enum
-  non backed ou de toute autre classe.
-- Une closure de `cast()` ne s'exécute qu'une fois les règles de son
-  argument passées, `nested()` compris, et reçoit la valeur de la requête :
-  elle construit un objet à partir d'une structure validée, par exemple
-  `cast(range: fn (array $v) => new Range((int) $v['min'], (int) $v['max']))`.
-  Si elle lève une exception, c'est une erreur de validation.
-- Une valeur de `default()` peut être fixe ou une closure. Une date mutable
-  (`now()`) est convertie dans la classe attendue par le scope.
-
-### Contexte
-
-Certains arguments de scope doivent venir du code, jamais du client :
-l'utilisateur courant, des identifiants calculés par un service… On les
-déclare avec `context()` :
-
-```php
-// scopeForUser(Builder $query, string $search, User $user, array $groupIds)
-$scope->scope('forUser')->context('user', 'groupIds');
-```
-
-L'URL ne porte que `search` (`?forUser[search]=foo`) : une clé
-`forUser[user]` envoyée par le client est ignorée. Le code fournit le
-contexte, par nom de scope, au moment de construire la requête :
-
-```php
-$query = $parameters->builder(context: [
-    'forUser' => [
-        'user' => $user,
-        'groupIds' => fn () => $groups->idsFor($user),
-    ],
-]);
-```
-
-- Une closure n'est appelée que si le client a demandé le scope, sauf si le
-  paramètre est lui-même typé `Closure` ou `callable`.
-- La closure reçoit, par nom, les arguments du scope venant de l'URL, une
-  fois castés et complétés par leur valeur par défaut (un enum, une date…) :
-  `'groupIds' => fn (string $search) => $groups->idsMatching($user, $search)`.
-  Un paramètre de la closure qui n'en fait pas partie, et n'a pas de valeur
-  par défaut, lève une `InvalidArgumentException`.
-- Un scope dont tous les arguments viennent du contexte est un interrupteur
-  booléen : `?mine=1` pour `scopeMine(Builder $query, User $user)`.
-- `default()` ou la valeur par défaut PHP remplace un contexte manquant ;
-  sinon, l'application du scope lève une `LogicException`.
-- Une clé de contexte pour un scope non déclaré, ou pour un argument non
-  déclaré avec `context()`, lève une `InvalidArgumentException`.
-
-### Tri
-
-```php
-$sort->sort('date')->column('created_at');
-$sort->sort('title');
-$sort->default('date', 'desc')->default('title', 'asc');
-```
-
-En mode `cursor`, la clé primaire est ajoutée en dernier critère de tri pour
-que les pages restent stables.
-
-### Relations
-
-```php
-$relation->relation('author')->fields(['id', 'name']);
-$relation->relation('author.profile');  // relation imbriquée
-```
-
-Pensez à inclure dans `fields()` les clés nécessaires à la relation.
-
-### Pagination
-
-```php
-$pagination
-    ->default('cursor')                 // mode par défaut
-    ->limit(25)                         // éléments par page par défaut
-    ->maxLimit(100)                     // limite acceptée
-    ->allow('offset', 'cursor', 'none');
-```
-
-## Erreurs de configuration
-
-Une config incohérente lève une
-`StructuraPhp\QueryBuilder\Exception\ConfigurationException` au moment où la
-query est lue, avant la validation des données du client :
-
-- nom invalide (lettres, chiffres et `_` uniquement, sans chiffre en tête),
-  réservé ou déclaré deux fois ;
-- filtre sans `type()` ;
-- scope ou relation inexistants sur le modèle ;
-- option de scope pour un argument qui n'existe pas, ou passée sans nom ;
-- `cast()`, `rules()`, `each()`, `nested()`, `messages()` ou `attribute()`
-  sur un argument de contexte ;
-- paramètre de scope ni typé ni casté, ou `cast()` qui n'est ni un `Type`,
-  ni un enum backed, ni une closure ;
-- tri par défaut non déclaré ou direction autre que `asc`/`desc` ;
-- mode de pagination inconnu, mode par défaut non autorisé, `limit` hors
-  de `1…maxLimit`.
-
-## Limites connues
-
-- Pas d'alias pour les relations.
-- Pas de filtre sur une colonne de relation (`author.name`), pas de groupes
-  `OR`, pas de mode `in` : passez par un scope.
-- Les scopes définis en macro du Builder ne sont pas supportés.
-- Une valeur entière hors de la plage de la colonne (`int4` PostgreSQL) n'est
-  pas détectée : ajoutez une règle `max:` au filtre.
+C'est tout : la requête ci-dessus renvoie une liste d'articles paginée,
+filtrée et triée, avec leurs auteurs.
+
+## Fonctionnalités
+
+- **🔒 Déclaré, jamais deviné.** Le client n'utilise que ce que la classe de
+  query déclare. Les noms publics restent séparés du schéma (`column()`), et
+  les colonnes chargées d'une relation sont fixées par vous (`fields()`).
+- **✅ Validation Laravel.** Règles, messages et attributs sont générés : le
+  client reçoit des erreurs 422 champ par champ. Ajoutez vos propres règles
+  et messages, et validez aussi hors HTTP (`QueryParameters::fromArray()`).
+- **🔎 Filtres typés.** Filtres chaîne, entier, flottant, booléen et date
+  avec leurs opérateurs ; recherches `like` échappées et insensibles à la
+  casse ; comparaisons de dates au jour qui gardent vos index utilisables.
+- **🧩 Des scopes avec de vrais arguments.** Appelez les scopes du modèle,
+  les méthodes `#[Scope]` ou celles de votre Builder personnalisé. Les
+  arguments sont validés et convertis d'après la signature PHP : enums,
+  dates, tableaux, structures imbriquées, ou vos propres objets via un cast.
+- **🔐 Contexte côté serveur.** Fournissez des arguments de scope depuis le
+  code (l'utilisateur courant, des identifiants calculés par un service),
+  jamais depuis le client, et calculez-les seulement si le scope est
+  demandé.
+- **↕️ Tri.** Tris déclarés sur des colonnes ou des nombres de relations,
+  priorité donnée par l'URL, tris par défaut.
+- **🔗 Relations.** Le client choisit les relations à charger ou à compter,
+  parmi celles déclarées.
+- **📄 Pagination.** Par offset, par curseur (stable, sans requête de
+  comptage) ou sans pagination, avec une limite que le client ne peut pas
+  dépasser.
+- **🧱 Pensé pour le domaine.** `QueryParameters` est un value object sans
+  dépendance HTTP : passez-le à un service, et continuez d'affiner le
+  Builder.
+- **📘 Prêt pour OpenAPI.** [Scramble](https://scramble.dedoc.co) documente
+  vos query requests comme n'importe quelle form request.
+
+## 📖 Documentation
+
+Le [guide d'utilisation](docs/README.fr.md) détaille chaque fonctionnalité
+avec sa configuration, des exemples d'URL, et le SQL ou l'erreur de
+validation qu'elles produisent : [filtres](docs/filters.fr.md),
+[scopes](docs/scopes.fr.md), [contexte](docs/context.fr.md),
+[tri](docs/sorting.fr.md), [relations](docs/relations.fr.md) et
+[pagination](docs/pagination.fr.md). Les [règles PHPStan](docs/phpstan.fr.md)
+signalent les erreurs de configuration en CI.
+
+## 🤖 Agents IA
+
+Avec [Laravel Boost](https://laravel.com/docs/13.x/boost),
+`php artisan boost:install` donne à vos agents IA les consignes et la skill
+`structura-query-builder` de la librairie.
+
+## Licence
+
+Query Builder est un logiciel libre sous [licence MIT](LICENSE).

@@ -1,0 +1,7 @@
+# The same project, analysed with Larastan loaded.
+includes:
+    - ../../../vendor/larastan/larastan/extension.neon
+    - phpstan.neon
+
+parameters:
+    tmpDir: ../../../.cache/phpstan-smoke-larastan

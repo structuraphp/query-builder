@@ -23,7 +23,7 @@ final class ScopeArticleQuery implements FromModel, WithScope
         $scope->scope('popular');
         $scope->scope('publishedBetween')
             ->default(
-                to: fn (): CarbonImmutable => CarbonImmutable::parse(
+                to: static fn (): CarbonImmutable => CarbonImmutable::parse(
                     '2030-01-01',
                 ),
             )

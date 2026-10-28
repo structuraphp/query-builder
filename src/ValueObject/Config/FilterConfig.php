@@ -21,6 +21,12 @@ final class FilterConfig implements FilterConfigInterface
 
     public private(set) ?string $attribute = null;
 
+    public private(set) bool $nullable = false;
+
+    public private(set) int $maxItems = 256;
+
+    public private(set) int $maxLength = 256;
+
     public function __construct(
         public readonly string $name,
     ) {}
@@ -56,6 +62,27 @@ final class FilterConfig implements FilterConfigInterface
     public function attribute(string $attribute): static
     {
         $this->attribute = $attribute;
+
+        return $this;
+    }
+
+    public function nullable(): static
+    {
+        $this->nullable = true;
+
+        return $this;
+    }
+
+    public function maxItems(int $max): static
+    {
+        $this->maxItems = $max;
+
+        return $this;
+    }
+
+    public function maxLength(int $max): static
+    {
+        $this->maxLength = $max;
 
         return $this;
     }

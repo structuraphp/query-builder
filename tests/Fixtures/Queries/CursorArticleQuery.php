@@ -7,6 +7,7 @@ namespace Tests\StructuraPhp\QueryBuilder\Fixtures\Queries;
 use StructuraPhp\QueryBuilder\Contract\Config\PaginationInterface;
 use StructuraPhp\QueryBuilder\Contract\Query\FromModel;
 use StructuraPhp\QueryBuilder\Contract\Query\WithPaginate;
+use StructuraPhp\QueryBuilder\Enum\PaginationMode;
 use Tests\StructuraPhp\QueryBuilder\Fixtures\Article;
 
 final class CursorArticleQuery implements FromModel, WithPaginate
@@ -18,6 +19,6 @@ final class CursorArticleQuery implements FromModel, WithPaginate
 
     public function paginate(PaginationInterface $pagination): void
     {
-        $pagination->default('cursor')->limit(10);
+        $pagination->default(PaginationMode::Cursor)->limit(10);
     }
 }

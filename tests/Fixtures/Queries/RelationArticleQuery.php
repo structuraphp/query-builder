@@ -20,5 +20,6 @@ final class RelationArticleQuery implements FromModel, WithRelation
     {
         $relation->relation('author')->fields(['id', 'name']);
         $relation->relation('comments');
+        $relation->relation('author.articles');
     }
 }

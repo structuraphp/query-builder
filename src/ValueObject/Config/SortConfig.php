@@ -10,6 +10,8 @@ final class SortConfig implements SortConfigInterface
 {
     public private(set) ?string $column = null;
 
+    public private(set) ?string $count = null;
+
     public function __construct(
         public readonly string $name,
     ) {}
@@ -17,6 +19,13 @@ final class SortConfig implements SortConfigInterface
     public function column(string $column): static
     {
         $this->column = $column;
+
+        return $this;
+    }
+
+    public function count(string $relation): static
+    {
+        $this->count = $relation;
 
         return $this;
     }

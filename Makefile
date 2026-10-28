@@ -2,6 +2,7 @@ SHELL=bash
 SOURCE_DIR = $(shell pwd)
 BIN_DIR = ${SOURCE_DIR}/vendor/bin
 COMPOSER = composer
+SMOKE_DIR = tests/PHPStan/Smoke
 
 _CYAN=\033[36m
 _GREEN=\033[32m
@@ -87,6 +88,33 @@ phpstan: ## Run static analysis (PHPStan)
 	$(call printSection,PHPSTAN)
 	${BIN_DIR}/phpstan --memory-limit=1G analyse
 
+.PHONY: phpstan-smoke
+phpstan-smoke: ## Run the rules on a sample project, without then with Larastan
+	$(call printSection,PHPSTAN SMOKE)
+	rm -rf .cache/phpstan-smoke .cache/phpstan-smoke-larastan
+	@mkdir -p .cache
+	@for suffix in '' -larastan; do \
+		out=.cache/phpstan-smoke$$suffix; \
+		for run in fresh cached; do \
+			${BIN_DIR}/phpstan analyse --no-progress --error-format=raw -vv \
+				-c ${SMOKE_DIR}/phpstan$$suffix.neon \
+				> $$out.out 2> $$out.err; \
+			code=$$?; \
+			test $$code -eq 1 \
+			&& ! grep -q 'Internal error' $$out.out $$out.err \
+			&& sed 's|^${SOURCE_DIR}/||' $$out.out \
+				| diff ${SMOKE_DIR}/expected$$suffix.txt - \
+			|| { cat $$out.err >&2; \
+				echo "phpstan$$suffix.neon, $$run run: unexpected result \
+(exit code $$code)" >&2; \
+				exit 1; }; \
+		done; \
+		grep -q 'Result cache restored' $$out.err \
+			|| { echo "phpstan$$suffix.neon: the second run did not use \
+the result cache" >&2; exit 1; }; \
+	done
+	@echo 'Each configuration reports exactly the expected errors, twice.'
+
 .PHONY: dependency
 dependency: ## Check for unused or missing composer dependencies
 	$(call printSection,COMPOSER DEPENDENCY)
@@ -112,14 +140,19 @@ psr4: ## Check that namespaces follow PSR-4
 #   \_/\___||___/\__|
 
 .PHONY: test
-test: ## Run the tests [usage: make test args="--filter=TestName --stop-on-failure"]
-	$(call printSection,TEST phpunit)
-	${BIN_DIR}/phpunit $(args)
+test: ## Run the tests in parallel [usage: make test args="--filter=TestName"]
+	$(call printSection,TEST paratest)
+	${BIN_DIR}/paratest $(args)
 
 .PHONY: coverage
 coverage: ## Run tests with coverage summary (pcov)
 	$(call printSection,COVERAGE)
 	${BIN_DIR}/phpunit --coverage-text --only-summary-for-coverage-text
+
+.PHONY: infection
+infection: ## Run mutation testing (Infection, pcov)
+	$(call printSection,INFECTION)
+	${BIN_DIR}/infection --threads=max --show-mutations
 
 #  _____ _____
 # /  __ \_   _|
@@ -138,6 +171,8 @@ ci: ## Run all CI checks
 	@test ! -f phpstan-baseline.neon || { echo "phpstan-baseline.neon forbidden: fix the errors instead of hiding them" >&2; exit 1; }
 	$(MAKE) --no-print-directory psr4
 	$(MAKE) --no-print-directory phpstan
+	$(MAKE) --no-print-directory phpstan-smoke
 	$(MAKE) --no-print-directory dependency
 	$(COMPOSER) audit
 	$(MAKE) --no-print-directory test
+	$(MAKE) --no-print-directory infection

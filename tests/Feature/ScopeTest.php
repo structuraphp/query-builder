@@ -5,7 +5,8 @@ declare(strict_types=1);
 namespace Tests\StructuraPhp\QueryBuilder\Feature;
 
 use Illuminate\Support\Facades\DB;
-use stdClass;
+use Illuminate\Validation\ValidationException;
+use StructuraPhp\QueryBuilder\ValueObject\QueryParameters;
 use Tests\StructuraPhp\QueryBuilder\Fixtures\Queries\CountingCastArticleQuery;
 use Tests\StructuraPhp\QueryBuilder\Fixtures\Queries\ScopeArticleQuery;
 use Tests\StructuraPhp\QueryBuilder\Fixtures\TestQueryRequest;
@@ -59,6 +60,15 @@ final class ScopeTest extends TestCase
     {
         $response = $this->fetch(ScopeArticleQuery::class, [
             'popular' => 'abc',
+        ]);
+
+        $response->assertUnprocessable()->assertJsonValidationErrors('popular');
+    }
+
+    public function testNoArgScopeRejectsAnArray(): void
+    {
+        $response = $this->fetch(ScopeArticleQuery::class, [
+            'popular' => ['foo' => '1'],
         ]);
 
         $response->assertUnprocessable()->assertJsonValidationErrors('popular');
@@ -196,6 +206,19 @@ final class ScopeTest extends TestCase
             ->assertJsonValidationErrors('near.lat');
     }
 
+    public function testInfiniteFloatArgumentIsInvalid(): void
+    {
+        $response = $this->fetch(ScopeArticleQuery::class, [
+            'near' => ['lat' => '1e999', 'lng' => '100'],
+        ]);
+
+        $response->assertUnprocessable();
+        self::assertSame(
+            'The near.lat field must be a number.',
+            self::errorMessage($response, 'near.lat'),
+        );
+    }
+
     public function testBadDateIs422(): void
     {
         $response = $this->fetch(ScopeArticleQuery::class, [
@@ -205,6 +228,39 @@ final class ScopeTest extends TestCase
         $response
             ->assertUnprocessable()
             ->assertJsonValidationErrors('publishedBetween.from');
+    }
+
+    public function testScopeWithOnlyDefaultsTakesABoolean(): void
+    {
+        $enabled = $this->fetch(ScopeArticleQuery::class, ['minViews' => '1']);
+        $disabled = $this->fetch(ScopeArticleQuery::class, ['minViews' => '0']);
+
+        $enabled->assertOk();
+        $disabled->assertOk();
+        self::assertSame(['Mid', 'New'], self::column($enabled, 'title'));
+        self::assertCount(3, self::column($disabled, 'title'));
+    }
+
+    public function testScopeWithOnlyDefaultsRejectsANonBoolean(): void
+    {
+        $response = $this->fetch(ScopeArticleQuery::class, [
+            'minViews' => 'abc',
+        ]);
+
+        $response
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('minViews');
+    }
+
+    public function testScopeWithARequiredArgumentRejectsABoolean(): void
+    {
+        $response = $this->fetch(ScopeArticleQuery::class, [
+            'publishedBetween' => '1',
+        ]);
+
+        $response
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('publishedBetween');
     }
 
     public function testScalarForArgScopeIs422(): void
@@ -290,23 +346,53 @@ final class ScopeTest extends TestCase
         $response->assertNoContent();
     }
 
-    public function testEmptyJsonObjectForScopeIs422(): void
+    /**
+     * A query string cannot send an empty array: it comes from code, through
+     * fromArray().
+     */
+    public function testPrecognitionDoesNotCastUnvalidatedArguments(): void
     {
-        TestQueryRequest::$queryClass = ScopeArticleQuery::class;
+        TestQueryRequest::$queryClass = CountingCastArticleQuery::class;
+        CountingCastArticleQuery::$calls = 0;
 
-        $response = $this->json('GET', '/articles', [
-            'publishedBetween' => new stdClass(),
-        ]);
+        $response = $this->withHeaders([
+            'Precognition' => 'true',
+            'Precognition-Validate-Only' => 'limit',
+        ])->getJson('/articles-precog?' . http_build_query([
+            'near' => ['lat' => ['x' => '1'], 'lng' => '100'],
+            'limit' => 10,
+        ]));
 
-        $response->assertUnprocessable();
+        $response->assertNoContent();
+        self::assertSame(0, CountingCastArticleQuery::$calls);
     }
 
-    public function testEmptyJsonArrayForScopeIs422(): void
+    public function testEmptyArgumentsForScopeAreInvalid(): void
+    {
+        $this->expectException(ValidationException::class);
+
+        QueryParameters::fromArray(new ScopeArticleQuery(), [
+            'publishedBetween' => [],
+        ]);
+    }
+
+    public function testEmptyArgumentsForEnumScopeAreInvalid(): void
+    {
+        $this->expectException(ValidationException::class);
+
+        QueryParameters::fromArray(new ScopeArticleQuery(), ['statut' => []]);
+    }
+
+    public function testJsonBodyIsIgnored(): void
     {
         TestQueryRequest::$queryClass = ScopeArticleQuery::class;
 
-        $response = $this->json('GET', '/articles', ['statut' => []]);
+        $response = $this->json('GET', '/articles?popular=1', [
+            'popular' => 0,
+            'minViews' => ['min' => 1000],
+        ]);
 
-        $response->assertUnprocessable();
+        $response->assertOk();
+        self::assertSame(['New'], self::column($response, 'title'));
     }
 }

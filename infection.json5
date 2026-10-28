@@ -1,0 +1,26 @@
+{
+    "$schema": "vendor/infection/infection/resources/schema.json",
+    "source": {
+        "directories": [
+            "src"
+        ]
+    },
+    "tmpDir": ".cache/infection",
+    "logs": {
+        "text": ".cache/infection/infection.log"
+    },
+    // Equivalent mutants: no test can tell them apart from the original.
+    "mutators": {
+        "@default": true,
+        // A validated page: Laravel casts it itself, the cast is for PHPStan.
+        "CastInt": {
+            "ignoreSourceCodeByRegex": ["\\$page = \\(int\\) TypeCaster::scalar\\(.*"]
+        },
+        // Only read for context arguments, which always set it.
+        "FalseValue": {
+            "ignoreSourceCodeByRegex": ["public bool \\$lazy = false,"]
+        }
+    },
+    "minMsi": 100,
+    "minCoveredMsi": 100
+}

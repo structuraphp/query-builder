@@ -14,11 +14,16 @@ use StructuraPhp\QueryBuilder\Enum\Type;
  */
 interface ScopeConfigInterface
 {
+    /**
+     * @param literal-string $method
+     */
     public function method(string $method): static;
 
     /**
      * Arguments given by the code through `builder(context: ...)`, never by
      * the client.
+     *
+     * @param literal-string ...$names
      */
     public function context(string ...$names): static;
 

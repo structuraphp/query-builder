@@ -24,8 +24,8 @@ final class WithoutInputMiddlewareTest extends TestCase
     {
         parent::setUp();
 
-        ConvertEmptyStringsToNull::skipWhen(fn (): true => true);
-        TrimStrings::skipWhen(fn (): true => true);
+        ConvertEmptyStringsToNull::skipWhen(static fn (): true => true);
+        TrimStrings::skipWhen(static fn (): true => true);
     }
 
     protected function tearDown(): void

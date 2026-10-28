@@ -29,16 +29,24 @@ use StructuraPhp\QueryBuilder\ValueObject\ScopeArgument;
 final class ScopeReflector
 {
     /**
-     * @return list<ScopeArgument>
+     * Like Laravel, a method of the model's own builder wins over a model
+     * scope of the same name.
+     *
+     * @return array{list<ScopeArgument>, bool} the arguments, and whether
+     *                                          the scope is a builder method
      */
-    public function arguments(Model $model, ScopeConfig $config): array
+    public function reflect(Model $model, ScopeConfig $config): array
     {
-        $method = $this->method($model, $config);
+        $builderMethod = $this->builderMethod($model, $config);
+        $onBuilder = $builderMethod instanceof ReflectionMethod;
+        $method = $builderMethod ?? $this->scopeMethod($model, $config);
         // A model scope receives the query first, a builder method does not.
-        $offset = $this->onBuilder($model, $config) ? 0 : 1;
+        $offset = $onBuilder ? 0 : 1;
         $parameters = \array_slice($method->getParameters(), $offset);
         $names = array_map(
-            fn (ReflectionParameter $parameter): string => $parameter->name,
+            static fn (
+                ReflectionParameter $parameter,
+            ): string => $parameter->name,
             $parameters,
         );
 
@@ -65,22 +73,13 @@ final class ScopeReflector
             }
         }
 
-        return array_map(
+        $arguments = array_map(
             fn (ReflectionParameter $parameter): ScopeArgument => $this
                 ->argument($config, $parameter),
             $parameters,
         );
-    }
 
-    /**
-     * Like Laravel, a method of the model's own builder wins over a model
-     * scope of the same name.
-     */
-    public function onBuilder(Model $model, ScopeConfig $config): bool
-    {
-        $method = $this->builderMethod($model, $config);
-
-        return $method instanceof ReflectionMethod;
+        return [$arguments, $onBuilder];
     }
 
     /**
@@ -106,17 +105,13 @@ final class ScopeReflector
             : null;
     }
 
-    private function method(
+    private function scopeMethod(
         Model $model,
         ScopeConfig $config,
     ): ReflectionMethod {
-        $builderMethod = $this->builderMethod($model, $config);
-        if ($builderMethod instanceof ReflectionMethod) {
-            return $builderMethod;
-        }
-
         $method = $config->method ?? $config->name;
-        $prefixed = 'scope' . ucfirst($method);
+        // Method names are case-insensitive: no ucfirst() needed.
+        $prefixed = 'scope' . $method;
 
         if (method_exists($model, $prefixed)) {
             return new ReflectionMethod($model, $prefixed);
@@ -180,7 +175,11 @@ final class ScopeReflector
      */
     private function flat(): Closure
     {
-        return function (string $attribute, mixed $value, Closure $fail): void {
+        return static function (
+            string $attribute,
+            mixed $value,
+            Closure $fail,
+        ): void {
             /** @var Closure(string): PotentiallyTranslatedString $fail */
             if (\is_array($value)) {
                 $fail('validation.in')->translate();
@@ -229,7 +228,7 @@ final class ScopeReflector
             each: [],
             messages: [],
             attribute: null,
-            cast: fn (mixed $value): mixed => $value,
+            cast: static fn (mixed $value): mixed => $value,
             default: $this->default($config, $parameter),
             context: true,
             lazy: !\in_array($type, [Closure::class, 'callable'], true),
@@ -247,7 +246,7 @@ final class ScopeReflector
         Closure|string|Type $cast,
     ): array {
         if ($cast instanceof Type) {
-            return [$cast->rules(), $cast->cast(...)];
+            return $this->builtin($cast);
         }
 
         if ($cast instanceof Closure) {
@@ -277,7 +276,9 @@ final class ScopeReflector
     private function closure(Closure $cast): array
     {
         $results = [];
-        $memoized = function (mixed $value) use ($cast, &$results): mixed {
+        $memoized = static function (
+            mixed $value,
+        ) use ($cast, &$results): mixed {
             $key = serialize($value);
             if (!\array_key_exists($key, $results)) {
                 $results[$key] = $cast($value);
@@ -298,36 +299,38 @@ final class ScopeReflector
     ): array {
         $class = $this->typeName($parameter);
 
-        $builtin = match ($class) {
-            'int' => Type::Integer,
-            'float' => Type::Float,
-            'bool' => Type::Boolean,
-            'string' => Type::String,
-            default => null,
+        return match ($class) {
+            'int' => $this->builtin(Type::Integer),
+            'float' => $this->builtin(Type::Float),
+            'bool' => $this->builtin(Type::Boolean),
+            'string' => $this->builtin(Type::String),
+            'array' => [['array'], static fn (mixed $value): mixed => $value],
+            default => $this->fromClass($config, $parameter, $class),
         };
+    }
 
-        if ($builtin !== null) {
-            return [$builtin->rules(), $builtin->cast(...)];
-        }
-
-        if ($class === 'array') {
-            return [['array'], fn (mixed $value): mixed => $value];
-        }
-
+    /**
+     * @return Resolved
+     */
+    private function fromClass(
+        ScopeConfig $config,
+        ReflectionParameter $parameter,
+        ?string $class,
+    ): array {
         if ($class !== null && is_subclass_of($class, BackedEnum::class)) {
             return $this->enum($class);
         }
 
         if ($class !== null && is_a(CarbonImmutable::class, $class, true)) {
-            return [Type::Date->rules(), Type::Date->cast(...)];
+            return $this->builtin(Type::Date);
         }
 
         if ($class !== null && is_a(Carbon::class, $class, true)) {
             return [
-                Type::Date->rules(),
-                fn (mixed $value): ?Carbon => Carbon::createFromFormat(
+                TypeCaster::rules(Type::Date),
+                static fn (mixed $value): ?Carbon => Carbon::createFromFormat(
                     '!Y-m-d',
-                    (string) Type::scalar($value),
+                    (string) TypeCaster::scalar($value),
                 ),
             ];
         }
@@ -341,6 +344,17 @@ final class ScopeReflector
     }
 
     /**
+     * @return Resolved
+     */
+    private function builtin(Type $type): array
+    {
+        return [
+            TypeCaster::rules($type),
+            static fn (mixed $value): mixed => TypeCaster::cast($type, $value),
+        ];
+    }
+
+    /**
      * @param class-string<BackedEnum> $enum
      *
      * @return Resolved
@@ -349,7 +363,7 @@ final class ScopeReflector
     {
         $backing = (string) new ReflectionEnum($enum)->getBackingType();
         $cast = static function (mixed $value) use ($enum, $backing) {
-            $value = Type::scalar($value);
+            $value = TypeCaster::scalar($value);
 
             return $enum::from(
                 $backing === 'int' ? (int) $value : (string) $value,
@@ -399,7 +413,7 @@ final class ScopeReflector
             $default = $config->defaults[$name];
             $resolve = $default instanceof Closure
                 ? $default
-                : fn (): mixed => $default;
+                : static fn (): mixed => $default;
 
             return fn (): mixed => $this->coerceDate($parameter, $resolve());
         }
@@ -407,7 +421,7 @@ final class ScopeReflector
         if ($parameter->isDefaultValueAvailable()) {
             $value = $parameter->getDefaultValue();
 
-            return fn (): mixed => $value;
+            return static fn (): mixed => $value;
         }
 
         return null;
