@@ -2,9 +2,17 @@ includes:
     - extension.neon
     - vendor/phpstan/phpstan-strict-rules/rules.neon
     - vendor/phpstan/phpstan-phpunit/extension.neon
+    - vendor/tomasvotruba/cognitive-complexity/config/extension.neon
 
 parameters:
     level: max
+    checkUninitializedProperties: true
+    checkImplicitMixed: true
+    checkBenevolentUnionTypes: true
+
+    cognitive_complexity:
+        class: 50
+        function: 8
     tmpDir: .cache/phpstan
     paths:
         - src

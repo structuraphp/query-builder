@@ -14,7 +14,7 @@ use StructuraPhp\QueryBuilder\ValueObject\QueryParameters;
 
 abstract class QueryRequest extends FormRequest
 {
-    private Definition $definition;
+    private ?Definition $definition = null;
 
     /**
      * @return array<string, list<mixed>>
