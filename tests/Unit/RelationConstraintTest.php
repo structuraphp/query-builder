@@ -189,9 +189,13 @@ final class RelationConstraintTest extends TestCase
 
         $rows = $this->rows($query, ['with' => 'subject']);
 
+        // PostgreSQL moves an updated row to the end of an unsorted read.
+        $subjects = array_column($rows, 'subject', 'body');
+        ksort($subjects);
+
         self::assertSame(
             ['a' => ['id' => 1, 'title' => 'Foo'], 'b' => null, 'c' => null],
-            array_column($rows, 'subject', 'body'),
+            $subjects,
         );
     }
 
