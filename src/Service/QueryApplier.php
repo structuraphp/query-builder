@@ -8,13 +8,9 @@ use Closure;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
-use InvalidArgumentException;
-use LogicException;
-use ReflectionFunction;
-use ReflectionMethod;
 use StructuraPhp\QueryBuilder\Enum\Direction;
 use StructuraPhp\QueryBuilder\Enum\Mode;
-use StructuraPhp\QueryBuilder\ValueObject\ScopeArgument;
+use StructuraPhp\QueryBuilder\Enum\Type;
 
 final readonly class QueryApplier
 {
@@ -39,13 +35,13 @@ final readonly class QueryApplier
         array $input = [],
         array $context = [],
     ): Builder {
-        $this->assertContext($context);
+        $scopes = new ScopeApplier($this->definition, $context);
         $constraints = new RelationConstraints($this->definition, $context);
 
         $query = $this->definition->model->newQuery();
 
         $this->applyFilters($query, $validated);
-        $this->applyScopes($query, $validated, $input, $context);
+        $scopes->apply($query, $validated, $input);
         $sorted = $this->applySorts($query, $validated);
         $this->applyRelations($query, $validated, $constraints);
         $this->applyCounts($query, $validated, $sorted, $constraints);
@@ -67,57 +63,6 @@ final readonly class QueryApplier
     }
 
     /**
-     * @param list<ScopeArgument> $arguments
-     *
-     * @return array<int, ScopeArgument>
-     */
-    public static function fromRequest(array $arguments): array
-    {
-        return array_filter(
-            $arguments,
-            static fn (ScopeArgument $argument): bool => !$argument->context,
-        );
-    }
-
-    /**
-     * Context is checked even when its scope is not requested, so a typo
-     * shows up at once.
-     *
-     * @param array<string, array<string, mixed>> $context
-     */
-    private function assertContext(array $context): void
-    {
-        foreach ($context as $scope => $values) {
-            // Read by RelationConstraints.
-            if ($scope === 'with' || $scope === 'count') {
-                continue;
-            }
-
-            $arguments = $this->definition->scopes[$scope][1] ?? null;
-            if ($arguments === null) {
-                throw new InvalidArgumentException(
-                    "Scope {$scope} is not declared.",
-                );
-            }
-
-            $names = array_map(
-                static fn (ScopeArgument $argument): string => $argument->name,
-                array_filter(
-                    $arguments,
-                    static fn (
-                        ScopeArgument $argument,
-                    ): bool => $argument->context,
-                ),
-            );
-            foreach (array_diff(array_keys($values), $names) as $unknown) {
-                throw new InvalidArgumentException(
-                    "Scope {$scope} has no context argument {$unknown}.",
-                );
-            }
-        }
-    }
-
-    /**
      * @param Builder<Model> $query
      * @param array<string, mixed> $validated
      */
@@ -136,16 +81,7 @@ final readonly class QueryApplier
                     $input['mode'] ?? Mode::Equal->value,
                 ),
             );
-            $value = match (true) {
-                $mode === Mode::IsNull => null,
-                $mode === Mode::In && \is_array($input['value']) => array_map(
-                    static fn (
-                        mixed $item,
-                    ): mixed => TypeCaster::cast($type, $item),
-                    $input['value'],
-                ),
-                default => TypeCaster::cast($type, $input['value']),
-            };
+            $value = $this->filterValue($type, $mode, $input);
 
             if (filter_var($input['not'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
                 $query->whereNot(static fn (Builder $q) => FilterApplier::apply(
@@ -162,108 +98,23 @@ final readonly class QueryApplier
     }
 
     /**
-     * @param Builder<Model> $query
-     * @param array<string, mixed> $validated
-     * @param array<string, mixed> $input
-     * @param array<string, array<string, mixed>> $context
+     * @param array<mixed> $input
      */
-    private function applyScopes(
-        Builder $query,
-        array $validated,
+    private function filterValue(
+        Type $type,
+        Mode $mode,
         array $input,
-        array $context,
-    ): void {
-        $scopes = $this->definition->scopes;
-        foreach ($scopes as $name => [$config, $arguments, $onBuilder]) {
-            $fromRequest = self::fromRequest($arguments);
-            // validated() drops a scope whose sub-keys are all unknown or
-            // omitted, yet it was still requested.
-            $requested = \array_key_exists($name, $validated)
-                || ($fromRequest !== [] && \is_array($input[$name] ?? null));
-            if (!$requested) {
-                continue;
-            }
-
-            $given = $validated[$name] ?? [];
-            $enabled = filter_var($given, FILTER_VALIDATE_BOOLEAN);
-            // A boolean, for a scope without arguments or with defaults only.
-            if (!\is_array($given) && !$enabled) {
-                continue;
-            }
-
-            $resolved = [];
-            foreach ($fromRequest as $argument) {
-                $resolved[$argument->name] = $this->argument($argument, $given);
-            }
-
-            $provided = $context[$name] ?? [];
-            $values = array_map(
-                fn (ScopeArgument $arg): mixed => $arg->context
-                    ? $this->context($name, $arg, $provided, $resolved)
-                    : $resolved[$arg->name],
-                $arguments,
-            );
-
-            $method = $config->method ?? $config->name;
-            if ($onBuilder) {
-                // Called as is, like Laravel does: unlike a model scope, its
-                // wheres are not grouped.
-                $reflection = new ReflectionMethod($query, $method);
-                $reflection->invoke($query, ...$values);
-            } else {
-                $query->scopes([$method => $values]);
-            }
-        }
-    }
-
-    /**
-     * @param array<string, mixed> $given
-     * @param array<string, mixed> $resolved request arguments of the scope,
-     *                                       cast and defaulted
-     */
-    private function context(
-        string $scope,
-        ScopeArgument $argument,
-        array $given,
-        array $resolved,
     ): mixed {
-        $value = $this->argument($argument, $given);
-        if (!$argument->lazy || !$value instanceof Closure) {
-            return $value;
-        }
-
-        $arguments = [];
-        $parameters = new ReflectionFunction($value)->getParameters();
-        foreach ($parameters as $parameter) {
-            $name = $parameter->name;
-            if (\array_key_exists($name, $resolved)) {
-                $arguments[$name] = $resolved[$name];
-            } elseif (!$parameter->isOptional()) {
-                throw new InvalidArgumentException(
-                    "Scope {$scope} has no request argument {$name} for the"
-                    . " context of {$argument->name}.",
-                );
-            }
-        }
-
-        return $value(...$arguments);
-    }
-
-    private function argument(
-        ScopeArgument $argument,
-        mixed $given,
-    ): mixed {
-        if (\is_array($given) && \array_key_exists($argument->name, $given)) {
-            return ($argument->cast)($given[$argument->name]);
-        }
-
-        if (!$argument->default instanceof Closure) {
-            throw new LogicException(
-                "Missing required scope argument {$argument->name}.",
-            );
-        }
-
-        return ($argument->default)();
+        return match (true) {
+            $mode === Mode::IsNull => null,
+            $mode === Mode::In && \is_array($input['value']) => array_map(
+                static fn (
+                    mixed $item,
+                ): mixed => TypeCaster::cast($type, $item),
+                $input['value'],
+            ),
+            default => TypeCaster::cast($type, $input['value']),
+        };
     }
 
     /**
@@ -362,8 +213,28 @@ final readonly class QueryApplier
             return;
         }
 
-        // Laravel loads the parents of a nested relation without their
-        // fields(): name them too, so their columns stay limited.
+        $relations = [];
+        foreach ($this->loads($with, $constraints) as $path => $load) {
+            if ($load instanceof Closure) {
+                $relations[$path] = $load;
+            } else {
+                $relations[] = $load;
+            }
+        }
+
+        $query->with($relations);
+    }
+
+    /**
+     * Laravel loads the parents of a nested relation without their fields():
+     * name them too, so their columns stay limited.
+     *
+     * @return array<string, Closure|string> by path
+     */
+    private function loads(
+        string $with,
+        RelationConstraints $constraints,
+    ): array {
         $loads = [];
         foreach (self::relationNames($with) as $name) {
             $path = null;
@@ -373,16 +244,7 @@ final readonly class QueryApplier
             }
         }
 
-        $relations = [];
-        foreach ($loads as $path => $load) {
-            if ($load instanceof Closure) {
-                $relations[$path] = $load;
-            } else {
-                $relations[] = $load;
-            }
-        }
-
-        $query->with($relations);
+        return $loads;
     }
 
     private function column(string $column): string

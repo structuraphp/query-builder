@@ -153,24 +153,11 @@ final readonly class ConfigurationCollector implements Collector
         );
 
         foreach ($exprs as $expr) {
-            $variable = null;
+            [$chain, $start, $variable] = $this->chain($expr);
 
-            if ($expr instanceof Assign) {
-                /** @var Variable $variable */
-                $variable = $expr->var;
-                $expr = $expr->expr;
-            }
-
-            $chain = [];
-
-            while ($expr instanceof MethodCall) {
-                array_unshift($chain, $expr);
-                $expr = $expr->var;
-            }
-
-            /** @var Variable $expr */
+            /** @var Variable $start */
             /** @var string $root */
-            $root = $expr->name;
+            $root = $start->name;
             $entity = $held[$root];
 
             foreach ($chain as $call) {
@@ -193,6 +180,32 @@ final readonly class ConfigurationCollector implements Collector
         }
 
         return $calls;
+    }
+
+    /**
+     * The calls of a statement in the order of the code, the expression
+     * they start from, and the variable the result is assigned to.
+     *
+     * @return array{list<MethodCall>, Expr, ?Variable}
+     */
+    private function chain(Expr $expr): array
+    {
+        $variable = null;
+
+        if ($expr instanceof Assign) {
+            /** @var Variable $variable */
+            $variable = $expr->var;
+            $expr = $expr->expr;
+        }
+
+        $chain = [];
+
+        while ($expr instanceof MethodCall) {
+            array_unshift($chain, $expr);
+            $expr = $expr->var;
+        }
+
+        return [$chain, $expr, $variable];
     }
 
     /**

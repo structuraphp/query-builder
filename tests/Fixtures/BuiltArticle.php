@@ -10,7 +10,8 @@ use Illuminate\Database\Eloquent\Model;
 
 /**
  * Declares its builder with the attribute, and a model scope that the
- * builder method of the same name overrides.
+ * builder method of the same name overrides: its other type tells them
+ * apart.
  */
 #[UseEloquentBuilder(ArticleBuilder::class)]
 class BuiltArticle extends Model
@@ -20,7 +21,7 @@ class BuiltArticle extends Model
     /**
      * @param Builder<self> $query
      */
-    public function scopeViewsAtLeast(Builder $query, int $min): void
+    public function scopeViewsAtLeast(Builder $query, string $min): void
     {
         $query->getQuery()->where('views', '<', $min);
     }

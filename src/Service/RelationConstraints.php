@@ -83,15 +83,7 @@ final readonly class RelationConstraints
                 return;
             }
 
-            // Laravel qualifies the columns the same way for `path:columns`.
-            if (
-                $relation instanceof BelongsToMany
-                || $relation instanceof HasOneOrManyThrough
-                || (
-                    $relation instanceof SupportsPartialRelations
-                    && $relation->isOneOfMany()
-                )
-            ) {
+            if (self::qualified($relation)) {
                 $fields = array_map(
                     $relation->getRelated()->qualifyColumn(...),
                     $fields,
@@ -183,19 +175,42 @@ final readonly class RelationConstraints
                 continue;
             }
 
-            $value = $given[$argument];
-            $type = $parameter->getType();
-            $lazy = !\in_array(
-                $type instanceof ReflectionNamedType ? $type->getName() : null,
-                [Closure::class, 'callable'],
-                true,
-            );
-            $values[$argument] = $lazy && $value instanceof Closure
-                ? $value()
-                : $value;
+            $values[$argument] = $this->resolve($parameter, $given[$argument]);
         }
 
         return $values;
+    }
+
+    /**
+     * A closure is called, unless the parameter expects one.
+     */
+    private function resolve(
+        ReflectionParameter $parameter,
+        mixed $value,
+    ): mixed {
+        $type = $parameter->getType();
+        $lazy = !\in_array(
+            $type instanceof ReflectionNamedType ? $type->getName() : null,
+            [Closure::class, 'callable'],
+            true,
+        );
+
+        return $lazy && $value instanceof Closure ? $value() : $value;
+    }
+
+    /**
+     * Laravel qualifies the columns the same way for `path:columns`.
+     *
+     * @param Relation<*, *, *> $relation
+     */
+    private static function qualified(Relation $relation): bool
+    {
+        return $relation instanceof BelongsToMany
+            || $relation instanceof HasOneOrManyThrough
+            || (
+                $relation instanceof SupportsPartialRelations
+                && $relation->isOneOfMany()
+            );
     }
 
     /**

@@ -65,6 +65,15 @@ final class ScopeTest extends TestCase
         $response->assertUnprocessable()->assertJsonValidationErrors('popular');
     }
 
+    public function testNoArgScopeRejectsAnArray(): void
+    {
+        $response = $this->fetch(ScopeArticleQuery::class, [
+            'popular' => ['foo' => '1'],
+        ]);
+
+        $response->assertUnprocessable()->assertJsonValidationErrors('popular');
+    }
+
     public function testNamedArgumentsAnyOrder(): void
     {
         $response = $this->fetch(ScopeArticleQuery::class, [

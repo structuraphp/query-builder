@@ -14,14 +14,18 @@ use StructuraPhp\QueryBuilder\Enum\Direction;
 use StructuraPhp\QueryBuilder\Enum\Mode;
 use StructuraPhp\QueryBuilder\Enum\PaginationMode;
 use StructuraPhp\QueryBuilder\Enum\Type;
-use StructuraPhp\QueryBuilder\ValueObject\ScopeArgument;
+use StructuraPhp\QueryBuilder\ValueObject\Config\FilterConfig;
 use Throwable;
 
 final readonly class ValidationCompiler
 {
+    private ScopeValidationCompiler $scopes;
+
     public function __construct(
         private Definition $definition,
-    ) {}
+    ) {
+        $this->scopes = new ScopeValidationCompiler($definition);
+    }
 
     /**
      * @return array<string, list<mixed>>
@@ -30,7 +34,7 @@ final readonly class ValidationCompiler
     {
         return [
             ...$this->filterRules(),
-            ...$this->scopeRules(),
+            ...$this->scopes->rules(),
             ...$this->sortRules(),
             ...$this->relationRules(),
             ...$this->paginationRules(),
@@ -72,35 +76,25 @@ final readonly class ValidationCompiler
         // Precognition drops the rules of the fields it does not validate.
         $rules = $validator->getRules();
 
-        foreach ($this->definition->scopes as $name => [, $arguments]) {
-            foreach ($arguments as $argument) {
-                $key = "{$name}.{$argument->name}";
-                $failed = array_any(
-                    $errors->keys(),
-                    static fn (string $error): bool => $error === $key
-                        || str_starts_with($error, "{$key}."),
-                );
-                if (
-                    !$argument->check instanceof Closure
-                    || $failed
-                    || !isset($rules[$key])
-                    || !Arr::has($data, $key)
-                ) {
-                    continue;
-                }
+        foreach ($this->scopes->arguments() as $key => $argument) {
+            $failed = array_any(
+                $errors->keys(),
+                static fn (string $error): bool => $error === $key
+                    || str_starts_with($error, "{$key}."),
+            );
+            if (
+                !$argument->check instanceof Closure
+                || $failed
+                || !isset($rules[$key])
+                || !Arr::has($data, $key)
+            ) {
+                continue;
+            }
 
-                try {
-                    ($argument->check)(Arr::get($data, $key));
-                } catch (Throwable) {
-                    $attribute = $validator->getDisplayableAttribute($key);
-                    $message = trans('validation.in', [
-                        'attribute' => $attribute,
-                    ]);
-                    $errors->add(
-                        $key,
-                        \is_string($message) ? $message : 'validation.in',
-                    );
-                }
+            try {
+                ($argument->check)(Arr::get($data, $key));
+            } catch (Throwable) {
+                $errors->add($key, $this->invalid($validator, $key));
             }
         }
     }
@@ -121,16 +115,7 @@ final readonly class ValidationCompiler
             }
         }
 
-        foreach ($this->definition->scopes as $name => [, $arguments]) {
-            foreach ($arguments as $argument) {
-                $key = "{$name}.{$argument->name}";
-                foreach ($argument->messages as $rule => $message) {
-                    $messages["{$key}.{$rule}"] = $message;
-                }
-            }
-        }
-
-        return $messages;
+        return [...$messages, ...$this->scopes->messages()];
     }
 
     /**
@@ -145,82 +130,7 @@ final readonly class ValidationCompiler
             }
         }
 
-        foreach ($this->definition->scopes as $name => [, $arguments]) {
-            foreach (QueryApplier::fromRequest($arguments) as $argument) {
-                $key = "{$name}.{$argument->name}";
-                $attributes[$key] = $argument->attribute ?? $key;
-                foreach ($argument->nestedAttributes as $path => $attribute) {
-                    $attributes["{$key}.{$path}"] = $attribute;
-                }
-            }
-        }
-
-        return $attributes;
-    }
-
-    /**
-     * @return array<string, list<mixed>>
-     */
-    private function scopeRules(): array
-    {
-        $rules = [];
-        foreach ($this->definition->scopes as $name => [, $arguments]) {
-            $arguments = QueryApplier::fromRequest($arguments);
-            if ($arguments === []) {
-                $rules[$name] = ['sometimes', 'required', 'boolean'];
-
-                continue;
-            }
-
-            // `filled` rejects an empty object, which `required_with` would
-            // treat as an absent scope.
-            $rules[$name] = ['array', 'filled'];
-            $optional = array_all(
-                $arguments,
-                static fn (ScopeArgument $argument): bool => $argument->default
-                    instanceof Closure,
-            );
-            if ($optional) {
-                // Every argument has a default: `1` applies the scope with
-                // them, like a scope without arguments.
-                $rules[$name] = [
-                    'sometimes',
-                    'required',
-                    Rule::when(
-                        static fn (Fluent $input): bool => \is_array(
-                            $input->get($name),
-                        ),
-                        ['array', 'filled'],
-                        ['boolean'],
-                    ),
-                ];
-            }
-
-            foreach ($arguments as $argument) {
-                $key = "{$name}.{$argument->name}";
-                $presence = $argument->default === null
-                    ? ["required_with:{$name}"]
-                    : ['sometimes', 'required'];
-                $rules[$key] = [...$presence, ...$argument->rules];
-
-                $nested = $argument->nested;
-                if ($argument->each !== []) {
-                    $nested['*'] = [...$argument->each, ...$nested['*'] ?? []];
-                }
-
-                // A nested `required` must not fire when the argument itself
-                // is absent. A path under `*` then matches nothing, and the
-                // dependent rule would make validation quadratic in the
-                // number of items.
-                foreach ($nested as $path => $pathRules) {
-                    $rules["{$key}.{$path}"] = str_starts_with($path, '*')
-                        ? $pathRules
-                        : ["exclude_without:{$key}", ...$pathRules];
-                }
-            }
-        }
-
-        return $rules;
+        return [...$attributes, ...$this->scopes->attributes()];
     }
 
     /**
@@ -240,15 +150,7 @@ final readonly class ValidationCompiler
                 $modes[] = Mode::IsNull;
             }
 
-            // A long `like` pattern can be refused by the engine (SQLite).
-            $length = $type === Type::String
-                ? ["max:{$config->maxLength}"]
-                : [];
-            $single = [
-                ...TypeCaster::rules($type),
-                ...$length,
-                ...$config->rules,
-            ];
+            $single = $this->single($config, $type);
 
             $rules[$name] = ['array'];
             $rules["{$name}.value"] = $this->valueRules(
@@ -271,6 +173,21 @@ final readonly class ValidationCompiler
         }
 
         return $rules;
+    }
+
+    /**
+     * The rules of a single value.
+     *
+     * @return list<mixed>
+     */
+    private function single(FilterConfig $config, Type $type): array
+    {
+        // A long `like` pattern can be refused by the engine (SQLite).
+        $length = $type === Type::String
+            ? ["max:{$config->maxLength}"]
+            : [];
+
+        return [...TypeCaster::rules($type), ...$length, ...$config->rules];
     }
 
     /**
@@ -469,9 +386,15 @@ final readonly class ValidationCompiler
         }
 
         $key = \is_array($sort) ? 'sort' : 'pagination';
+        $errors->add($key, $this->invalid($validator, $key));
+    }
+
+    private function invalid(Validator $validator, string $key): string
+    {
         $message = trans('validation.in', [
             'attribute' => $validator->getDisplayableAttribute($key),
         ]);
-        $errors->add($key, \is_string($message) ? $message : 'validation.in');
+
+        return \is_string($message) ? $message : 'validation.in';
     }
 }

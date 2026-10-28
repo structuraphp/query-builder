@@ -41,21 +41,19 @@ final readonly class QueryConfigurationRule implements Rule
         }
 
         $methods = [];
+        $collected = $node->get(ConfigurationCollector::class);
 
-        foreach ($node->get(ConfigurationCollector::class) as $collected) {
-            foreach ($collected as $method) {
-                $methods[$method['class']][$method['method']] = $method;
-            }
+        foreach (array_merge(...array_values($collected)) as $method) {
+            $methods[$method['class']][$method['method']] = $method;
         }
 
         $errors = [];
+        $classes = $node->get(QueryClassCollector::class);
 
-        foreach ($node->get(QueryClassCollector::class) as $classes) {
-            foreach ($classes as $class) {
-                foreach ($this->check($class, $methods) as $error) {
-                    // Same file, line and message: an inherited method.
-                    $errors[serialize($error)] = $error;
-                }
+        foreach (array_merge(...array_values($classes)) as $class) {
+            foreach ($this->check($class, $methods) as $error) {
+                // Same file, line and message: an inherited method.
+                $errors[serialize($error)] = $error;
             }
         }
 

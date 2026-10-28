@@ -137,11 +137,16 @@ final class ScopeNestedTest extends TestCase
     {
         $errors = $this->errors(['inRanges' => ['ranges' => [
             ['max' => '10'],
+            ['min' => '1'],
         ]]]);
 
         self::assertSame(
             ['Min obligatoire.'],
             $errors['inRanges.ranges.0.min'] ?? null,
+        );
+        self::assertSame(
+            ['Max obligatoire.'],
+            $errors['inRanges.ranges.1.max'] ?? null,
         );
     }
 
@@ -281,7 +286,10 @@ final class ScopeNestedTest extends TestCase
                 '*.min' => ['required', 'integer'],
                 '*.max' => ['required', 'integer', 'gte:inRanges.ranges.*.min'],
             ])
-            ->messages(ranges: ['*.min.required' => 'Min obligatoire.']);
+            ->messages(ranges: [
+                '*.min.required' => 'Min obligatoire.',
+                '*.max.required' => 'Max obligatoire.',
+            ]);
         $scope->scope('viewsWithin')->nested(range: [
             'min' => ['required', 'integer'],
             'max' => ['required', 'integer'],

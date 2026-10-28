@@ -87,35 +87,8 @@ final readonly class ModelInspector
             return null;
         }
 
-        if ($this->builder->hasMethod($name)) {
-            $method = $this->builder->getMethod($name);
-            $custom = $method->getDeclaringClass()
-                ->isSubclassOf(Builder::class);
-
-            if ($custom && $method->isPublic() && !$method->isStatic()) {
-                return self::signature($method, true);
-            }
-        }
-
-        if ($this->model->hasMethod('scope' . $name)) {
-            return self::signature(
-                $this->model->getMethod('scope' . $name),
-                false,
-            );
-        }
-
-        if ($this->model->hasMethod($name)) {
-            $method = $this->model->getMethod($name);
-
-            if (
-                !$method->isPrivate()
-                && $method->getAttributes(Scope::class) !== []
-            ) {
-                return self::signature($method, false);
-            }
-        }
-
-        return null;
+        return self::builderScope($this->builder, $name)
+            ?? $this->modelScope($name);
     }
 
     /**
@@ -187,6 +160,46 @@ final readonly class ModelInspector
             [...(\is_array($hidden) ? $hidden : []), ...$columns],
             \is_string(...),
         ));
+    }
+
+    /**
+     * @param ReflectionClass<*> $builder
+     */
+    private static function builderScope(
+        ReflectionClass $builder,
+        string $name,
+    ): ?ScopeSignature {
+        if (!$builder->hasMethod($name)) {
+            return null;
+        }
+
+        $method = $builder->getMethod($name);
+        $custom = $method->getDeclaringClass()->isSubclassOf(Builder::class);
+
+        return $custom && $method->isPublic() && !$method->isStatic()
+            ? self::signature($method, true)
+            : null;
+    }
+
+    private function modelScope(string $name): ?ScopeSignature
+    {
+        if ($this->model->hasMethod('scope' . $name)) {
+            return self::signature(
+                $this->model->getMethod('scope' . $name),
+                false,
+            );
+        }
+
+        if (!$this->model->hasMethod($name)) {
+            return null;
+        }
+
+        $method = $this->model->getMethod($name);
+
+        return !$method->isPrivate()
+            && $method->getAttributes(Scope::class) !== []
+                ? self::signature($method, false)
+                : null;
     }
 
     /**

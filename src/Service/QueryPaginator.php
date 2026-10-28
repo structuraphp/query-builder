@@ -70,18 +70,7 @@ final class QueryPaginator
         int $limit,
         mixed $cursor,
     ): CursorPaginator {
-        $keys = [
-            $definition->model->getKeyName(),
-            $definition->model->getQualifiedKeyName(),
-        ];
-        $sorted = array_any(
-            $query->getQuery()->orders ?? [],
-            static fn (mixed $order): bool => \is_array($order)
-                && \in_array($order['column'] ?? null, $keys, true),
-        );
-        if (!$sorted) {
-            $query->getQuery()->orderBy($keys[1]);
-        }
+        $this->orderByKey($definition, $query);
 
         $cursor = \is_string($cursor) ? $cursor : null;
         // Laravel reads an undecodable cursor as the first page, and binds
@@ -100,6 +89,25 @@ final class QueryPaginator
             // A tampered cursor value can be rejected by a strict engine
             // (e.g. text against a PostgreSQL bigint).
             throw $cursor === null ? $e : $this->invalidCursor();
+        }
+    }
+
+    /**
+     * @param Builder<Model> $query
+     */
+    private function orderByKey(Definition $definition, Builder $query): void
+    {
+        $keys = [
+            $definition->model->getKeyName(),
+            $definition->model->getQualifiedKeyName(),
+        ];
+        $sorted = array_any(
+            $query->getQuery()->orders ?? [],
+            static fn (mixed $order): bool => \is_array($order)
+                && \in_array($order['column'] ?? null, $keys, true),
+        );
+        if (!$sorted) {
+            $query->getQuery()->orderBy($keys[1]);
         }
     }
 
