@@ -64,20 +64,23 @@ abstract class QueryRequest extends FormRequest
     }
 
     /**
-     * @return class-string<FromModel<TBuilder>>
+     * Public for the documentation generators, which read what the query
+     * declares.
+     *
+     * Not `$this->container`: they build the request with `new`, without
+     * setting it.
      */
-    abstract protected function getQuery(): string;
-
-    /**
-     * Not `$this->container`: documentation generators (Scramble) build the
-     * request with `new`, without setting it.
-     */
-    protected function definition(): Definition
+    public function definition(): Definition
     {
         return $this->definition ??= Definition::fromQuery(
             Container::getInstance()->make($this->getQuery()),
         );
     }
+
+    /**
+     * @return class-string<FromModel<TBuilder>>
+     */
+    abstract protected function getQuery(): string;
 
     #[Override]
     protected function createDefaultValidator(

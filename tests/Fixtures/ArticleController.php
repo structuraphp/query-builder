@@ -31,6 +31,19 @@ final class ArticleController
     }
 
     /**
+     * A union and a builtin type come before the request.
+     *
+     * @return Page
+     */
+    public function mixed(
+        int|string $union,
+        string $builtin,
+        TestQueryRequest $request,
+    ): Collection|CursorPaginator|LengthAwarePaginator {
+        return $this->paginate($request);
+    }
+
+    /**
      * @return Page
      */
     public function override(
