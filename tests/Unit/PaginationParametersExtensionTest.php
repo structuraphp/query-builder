@@ -106,6 +106,7 @@ final class PaginationParametersExtensionTest extends TestCase
             ['with', 'pagination', 'limit', 'page', 'count'],
             $this->names($operation),
         );
+        self::assertTrue(array_is_list($operation->parameters));
         self::assertSame(20, $this->schema($operation, 'limit')['default']);
     }
 

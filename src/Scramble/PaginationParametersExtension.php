@@ -7,11 +7,13 @@ namespace StructuraPhp\QueryBuilder\Scramble;
 use Dedoc\Scramble\Extensions\OperationExtension;
 use Dedoc\Scramble\Support\Generator\Operation;
 use Dedoc\Scramble\Support\Generator\Parameter;
+use Dedoc\Scramble\Support\Generator\Reference;
 use Dedoc\Scramble\Support\Generator\Schema;
 use Dedoc\Scramble\Support\RouteInfo;
 use Override;
 use StructuraPhp\QueryBuilder\Enum\PaginationMode;
 use StructuraPhp\QueryBuilder\Service\Definition;
+use StructuraPhp\QueryBuilder\ValueObject\Config\Pagination;
 
 /**
  * Documents the pagination the query declares.
@@ -32,12 +34,28 @@ final class PaginationParametersExtension extends OperationExtension
             return;
         }
 
-        $pagination = $definition->pagination;
+        $documented = $this->documented($definition->pagination);
+
+        $parameters = [];
+
+        foreach ($operation->parameters as $parameter) {
+            $parameters[] = $this->document($parameter, $documented);
+        }
+
+        $operation->parameters = array_values(array_filter($parameters));
+    }
+
+    /**
+     * By name: whether it is kept, its description and its default.
+     *
+     * @return array<string, array{bool, string, null|int|string}>
+     */
+    private function documented(Pagination $pagination): array
+    {
         $offset = \in_array(PaginationMode::Offset, $pagination->allowed, true);
         $cursor = \in_array(PaginationMode::Cursor, $pagination->allowed, true);
 
-        // name => [kept, description, default]
-        $documented = [
+        return [
             'pagination' => [
                 true,
                 'How the results are paginated.',
@@ -60,35 +78,36 @@ final class PaginationParametersExtension extends OperationExtension
                 null,
             ],
         ];
+    }
 
-        $parameters = [];
-
-        foreach ($operation->parameters as $parameter) {
-            $spec = $parameter instanceof Parameter
-                ? ($documented[$parameter->name] ?? null)
-                : null;
-
-            if ($spec === null) {
-                $parameters[] = $parameter;
-
-                continue;
-            }
-
-            [$kept, $description, $default] = $spec;
-
-            if (!$kept) {
-                continue;
-            }
-
-            $parameter->description($description);
-
-            if ($default !== null && $parameter->schema instanceof Schema) {
-                $parameter->schema->type->default($default);
-            }
-
-            $parameters[] = $parameter;
+    /**
+     * Null when no allowed mode reads the parameter.
+     *
+     * @param array<string, array{bool, string, null|int|string}> $documented
+     */
+    private function document(
+        Parameter|Reference $parameter,
+        array $documented,
+    ): Parameter|Reference|null {
+        if (
+            !$parameter instanceof Parameter
+            || !isset($documented[$parameter->name])
+        ) {
+            return $parameter;
         }
 
-        $operation->parameters = $parameters;
+        [$kept, $description, $default] = $documented[$parameter->name];
+
+        if (!$kept) {
+            return null;
+        }
+
+        $parameter->description($description);
+
+        if ($default !== null && $parameter->schema instanceof Schema) {
+            $parameter->schema->type->default($default);
+        }
+
+        return $parameter;
     }
 }

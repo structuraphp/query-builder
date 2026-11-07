@@ -15,6 +15,8 @@ use StructuraPhp\QueryBuilder\Contract\Config\ScopeInterface;
 use StructuraPhp\QueryBuilder\Contract\Config\SortInterface;
 use StructuraPhp\QueryBuilder\Enum\PaginationMode;
 use StructuraPhp\QueryBuilder\Enum\Type;
+use StructuraPhp\QueryBuilder\Service\Definition;
+use StructuraPhp\QueryBuilder\Service\ValidationCompiler;
 use StructuraPhp\QueryBuilder\ValueObject\QueryParameters;
 use Tests\StructuraPhp\QueryBuilder\Fixtures\Queries\ConfigurableQuery;
 use Tests\StructuraPhp\QueryBuilder\Fixtures\TestQueryRequest;
@@ -44,6 +46,39 @@ final class TranslationTest extends TestCase
         $response
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['sort.date' => 'Bad date order.']);
+    }
+
+    public function testAFilterIsNamedOnEveryKey(): void
+    {
+        $query = new ConfigurableQuery(filter: static function (
+            FilterInterface $filter,
+        ): void {
+            $filter->filter('views')->type(Type::Integer)->attribute('Views');
+        });
+
+        $attributes = new ValidationCompiler(Definition::fromQuery($query))
+            ->attributes();
+
+        self::assertSame(
+            ['views.value', 'views.value.*', 'views.mode', 'views.not'],
+            array_keys($attributes),
+        );
+    }
+
+    public function testEverySortIsNamed(): void
+    {
+        $query = new ConfigurableQuery(sort: static function (
+            SortInterface $sort,
+        ): void {
+            $sort->sort('date')->column('created_at')->attribute('Date');
+            $sort->sort('title')->attribute('Title');
+            $sort->sort('views');
+        });
+
+        $attributes = new ValidationCompiler(Definition::fromQuery($query))
+            ->attributes();
+
+        self::assertSame(['sort.date', 'sort.title'], array_keys($attributes));
     }
 
     public function testSortRequiredMessage(): void

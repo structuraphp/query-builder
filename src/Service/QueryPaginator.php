@@ -100,7 +100,9 @@ final class QueryPaginator
     }
 
     /**
-     * @param Builder<Model> $query
+     * @template TModel of Model
+     *
+     * @param Builder<TModel> $query
      */
     private function orderByKey(Definition $definition, Builder $query): void
     {

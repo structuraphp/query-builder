@@ -7,6 +7,7 @@ namespace StructuraPhp\QueryBuilder\Scramble;
 use Dedoc\Scramble\Extensions\OperationExtension;
 use Dedoc\Scramble\Support\Generator\Operation;
 use Dedoc\Scramble\Support\Generator\Parameter;
+use Dedoc\Scramble\Support\Generator\Reference;
 use Dedoc\Scramble\Support\Generator\Schema;
 use Dedoc\Scramble\Support\Generator\Types\ArrayType;
 use Dedoc\Scramble\Support\Generator\Types\NumberType;
@@ -30,23 +31,23 @@ final class NumberBoundsExtension extends OperationExtension
     public function handle(Operation $operation, RouteInfo $routeInfo): void
     {
         foreach ($operation->parameters as $parameter) {
-            if (
-                !$parameter instanceof Parameter
-                || !$parameter->schema instanceof Schema
-            ) {
-                continue;
+            if ($parameter instanceof Parameter) {
+                $this->strip($parameter->schema);
             }
+        }
+    }
 
-            $type = $parameter->schema->type;
+    private function strip(Reference|Schema|null $schema): void
+    {
+        $type = $schema instanceof Schema ? $schema->type : null;
 
-            if ($type instanceof ArrayType) {
-                $type = $type->items;
-            }
+        if ($type instanceof ArrayType) {
+            $type = $type->items;
+        }
 
-            if ($type instanceof NumberType) {
-                $type->min = $this->unsafe($type->min) ? null : $type->min;
-                $type->max = $this->unsafe($type->max) ? null : $type->max;
-            }
+        if ($type instanceof NumberType) {
+            $type->min = $this->unsafe($type->min) ? null : $type->min;
+            $type->max = $this->unsafe($type->max) ? null : $type->max;
         }
     }
 
