@@ -55,5 +55,36 @@ comme un élément de la liste :
   `[mode]` à côté, ou qui n'est pas un tableau.
 - La lancer deux fois ne change rien.
 
+## Documenter les relations
+
+`with` et `count` prennent une liste de relations déclarées par la query,
+séparées par des virgules, vérifiée par une closure que Scramble ne peut pas
+lire : il documente une simple `string`, et un client généré ne connaît ni
+les noms ni le format.
+
+`RelationParametersExtension` les lit dans la query de la requête que prend
+l'action. Enregistrez-la à côté de l'autre :
+
+```php
+'extensions' => [
+    StructuraPhp\QueryBuilder\Scramble\ScalarFilterValueExtension::class,
+    StructuraPhp\QueryBuilder\Scramble\RelationParametersExtension::class,
+],
+```
+
+```json
+{
+  "name": "with",
+  "in": "query",
+  "description": "Relations to load, separated by commas: `author`, `comments`.",
+  "schema": {"type": "string", "pattern": "^\\s*(author|comments)\\s*(,\\s*(author|comments)\\s*)*$"}
+}
+```
+
+- Une query qui ne déclare aucune relation (ou aucun comptage) interdit le
+  paramètre : il est retiré de l'opération.
+- Le motif accepte les espaces autour des noms, comme le serveur.
+- Une action sans paramètre `QueryRequest` est laissée telle quelle.
+
 `dedoc/scramble` n'est pas une dépendance de la librairie : l'extension ne
 fonctionne que là où Scramble est installé.
