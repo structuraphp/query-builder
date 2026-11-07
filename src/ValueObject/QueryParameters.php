@@ -87,12 +87,14 @@ final readonly class QueryParameters
     }
 
     /**
-     * @param Builder<Model> $query
+     * @template TModel of Model
+     *
+     * @param Builder<TModel> $query
      *
      * @return (
-     *     Collection<int, Model>
-     *     |CursorPaginator<int, Model>
-     *     |LengthAwarePaginator<int, Model>
+     *     Collection<int, TModel>
+     *     |CursorPaginator<int, TModel>
+     *     |LengthAwarePaginator<int, TModel>
      * )
      */
     public function paginate(

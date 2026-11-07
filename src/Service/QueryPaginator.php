@@ -19,13 +19,15 @@ use UnexpectedValueException;
 final class QueryPaginator
 {
     /**
-     * @param Builder<Model> $query
+     * @template TModel of Model
+     *
+     * @param Builder<TModel> $query
      * @param array<string, mixed> $validated
      *
      * @return (
-     *     Collection<int, Model>
-     *     |CursorPaginator<int, Model>
-     *     |LengthAwarePaginator<int, Model>
+     *     Collection<int, TModel>
+     *     |CursorPaginator<int, TModel>
+     *     |LengthAwarePaginator<int, TModel>
      * )
      */
     public function paginate(
@@ -60,9 +62,11 @@ final class QueryPaginator
     }
 
     /**
-     * @param Builder<Model> $query
+     * @template TModel of Model
      *
-     * @return CursorPaginator<int, Model>
+     * @param Builder<TModel> $query
+     *
+     * @return CursorPaginator<int, TModel>
      */
     private function cursor(
         Definition $definition,
