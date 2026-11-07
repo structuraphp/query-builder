@@ -16,6 +16,7 @@ de validation (422).
   condition.
 - [Pagination](pagination.fr.md) : par offset, par curseur ou sans
   pagination.
+- [OpenAPI](openapi.fr.md) : documenter les valeurs de filtre avec Scramble.
 - [Règles PHPStan](phpstan.fr.md) : signaler les erreurs de configuration
   avant tout appel.
 
@@ -53,6 +54,19 @@ public function list(QueryParameters $parameters)
   [contexte](context.fr.md) des scopes et des conditions de relation.
 - `paginate()` renvoie un `LengthAwarePaginator` (`offset`), un
   `CursorPaginator` (`cursor`) ou une `Collection` (`none`).
+- Pour PHPStan, `builder()` renvoie le builder que la query déclare, et
+  `paginate()` garde son modèle. Sans déclaration, c'est un
+  `Builder<Model>` :
+
+```php
+/** @implements FromModel<ArticleBuilder> */
+final class ArticleQuery implements FromModel, WithFilter { /* … */ }
+
+/** @extends QueryRequest<ArticleBuilder> */
+final class ArticleQueryRequest extends QueryRequest { /* … */ }
+
+$parameters->builder()->published(); // une méthode d'ArticleBuilder
+```
 - La classe de query est résolue par le container Laravel : son
   constructeur peut recevoir des dépendances.
 - Les méthodes `messages()` et `attributes()` de la request restent
@@ -74,7 +88,8 @@ $page = $parameters->paginate($parameters->builder());
 [Scramble](https://scramble.dedoc.co) documente une `QueryRequest` comme
 n'importe quelle form request : filtres, scopes, tris et pagination
 deviennent des paramètres de query (`title[value]`, `sort[date]`…), les
-arguments de contexte restent cachés.
+arguments de contexte restent cachés. Voir [OpenAPI](openapi.fr.md) pour la
+forme simple de la valeur d'un filtre.
 
 ## Conventions
 

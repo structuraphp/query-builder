@@ -33,6 +33,18 @@ final class QueryRequestTest extends TestCase
         self::assertArrayHasKey('sort', $rules);
     }
 
+    public function testDefinitionIsReadableByDocumentationGenerators(): void
+    {
+        TestQueryRequest::$queryClass = SortArticleQuery::class;
+
+        $definition = new TestQueryRequest()->definition();
+
+        self::assertSame(
+            ['date', 'title'],
+            array_keys($definition->sorts),
+        );
+    }
+
     public function testOneRulePerSortKey(): void
     {
         $definition = Definition::fromQuery(new SortArticleQuery());

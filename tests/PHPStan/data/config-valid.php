@@ -35,19 +35,27 @@ final class ValidQuery implements
 
     public function filter(FilterInterface $filter): void
     {
-        $filter->filter('title')->type(Type::String)->maxItems(1);
+        $filter->filter('title')
+            ->type(Type::String)
+            ->maxItems(1)
+            ->messages(['max' => static fn (): string => trans('title.max')])
+            ->attribute(static fn (): string => trans('title'));
         $filter->filter('Views_2')->type(Type::Integer)->maxLength(1);
     }
 
     public function scope(ScopeInterface $scope): void
     {
         $scope->scope('popular');
-        $scope->scope('status')->method('ofStatus');
+        $scope->scope('status')
+            ->method('ofStatus')
+            ->attribute(status: static fn (): string => trans('status'));
     }
 
     public function sort(SortInterface $sort): void
     {
-        $sort->sort('title');
+        $sort->sort('title')
+            ->attribute(static fn (): string => trans('sorts.title'))
+            ->messages(['in' => static fn (): string => trans('sorts.in')]);
         $sort->sort('date')->column('created_at');
         $sort->sort('comments')->count('comments');
         $sort->default('title');
@@ -69,6 +77,8 @@ final class ValidQuery implements
             ->allow(PaginationMode::Offset, PaginationMode::None)
             ->default(PaginationMode::None)
             ->limit(100)
-            ->maxLimit(100);
+            ->maxLimit(100)
+            ->attribute(limit: static fn (): string => trans('limit'))
+            ->messages(limit: ['max' => static fn (): string => trans('max')]);
     }
 }

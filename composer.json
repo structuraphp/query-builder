@@ -11,6 +11,7 @@
     },
     "require-dev": {
         "brianium/paratest": "^7.22",
+        "dedoc/scramble": "^0.13",
         "friendsofphp/php-cs-fixer": "^3.94",
         "infection/infection": "^0.35",
         "larastan/larastan": "^3.13",
@@ -22,6 +23,9 @@
         "rector/rector": "^2.3",
         "shipmonk/composer-dependency-analyser": "^1.8",
         "tomasvotruba/cognitive-complexity": "^1.3"
+    },
+    "suggest": {
+        "dedoc/scramble": "Documents the scalar form of the filter values (ScalarFilterValueExtension, RelationParametersExtension, NumberBoundsExtension, PaginationParametersExtension)"
     },
     "license": "MIT",
     "autoload": {

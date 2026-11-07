@@ -10,11 +10,13 @@ use Illuminate\Support\Fluent;
 use Illuminate\Translation\PotentiallyTranslatedString;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
+use Stringable;
 use StructuraPhp\QueryBuilder\Enum\Direction;
 use StructuraPhp\QueryBuilder\Enum\Mode;
 use StructuraPhp\QueryBuilder\Enum\PaginationMode;
 use StructuraPhp\QueryBuilder\Enum\Type;
 use StructuraPhp\QueryBuilder\ValueObject\Config\FilterConfig;
+use StructuraPhp\QueryBuilder\ValueObject\LazyString;
 use Throwable;
 
 final readonly class ValidationCompiler
@@ -100,37 +102,122 @@ final readonly class ValidationCompiler
     }
 
     /**
-     * @return array<string, string>
+     * A closure is resolved when Laravel writes an error, not before.
+     *
+     * @return array<string, string|Stringable>
      */
     public function messages(): array
     {
         // The `array:` message only says that `sort` must be an array, even
         // for an undeclared key.
         $invalid = trans('validation.in');
-        $messages = \is_string($invalid) ? ['sort.array' => $invalid] : [];
+
+        return [
+            ...(\is_string($invalid) ? ['sort.array' => $invalid] : []),
+            ...$this->filterMessages(),
+            ...$this->sortMessages(),
+            ...$this->paginationMessages(),
+            ...$this->scopes->messages(),
+        ];
+    }
+
+    /**
+     * A closure is resolved when Laravel writes an error, not before.
+     *
+     * @return array<string, string|Stringable>
+     */
+    public function attributes(): array
+    {
+        return [
+            ...$this->filterAttributes(),
+            ...$this->sortAttributes(),
+            ...array_map(
+                LazyString::of(...),
+                $this->definition->pagination->attributes,
+            ),
+            ...$this->scopes->attributes(),
+        ];
+    }
+
+    /**
+     * @return array<string, string|Stringable>
+     */
+    private function filterMessages(): array
+    {
+        $messages = [];
         foreach ($this->definition->filters as $name => $config) {
             foreach ($config->messages as $rule => $message) {
+                $message = LazyString::of($message);
                 $messages["{$name}.value.{$rule}"] = $message;
                 $messages["{$name}.value.*.{$rule}"] = $message;
             }
         }
 
-        return [...$messages, ...$this->scopes->messages()];
+        return $messages;
     }
 
     /**
-     * @return array<string, string>
+     * @return array<string, string|Stringable>
      */
-    public function attributes(): array
+    private function sortMessages(): array
+    {
+        $messages = [];
+        foreach ($this->definition->sorts as $name => $config) {
+            foreach ($config->messages as $rule => $message) {
+                $messages["sort.{$name}.{$rule}"] = LazyString::of($message);
+            }
+        }
+
+        return $messages;
+    }
+
+    /**
+     * @return array<string, string|Stringable>
+     */
+    private function paginationMessages(): array
+    {
+        $messages = [];
+        foreach ($this->definition->pagination->messages as $key => $rules) {
+            foreach ($rules as $rule => $message) {
+                $messages["{$key}.{$rule}"] = LazyString::of($message);
+            }
+        }
+
+        return $messages;
+    }
+
+    /**
+     * @return array<string, string|Stringable>
+     */
+    private function filterAttributes(): array
     {
         $attributes = [];
         foreach ($this->definition->filters as $name => $config) {
             foreach (['value', 'value.*', 'mode', 'not'] as $key) {
-                $attributes["{$name}.{$key}"] = $config->attribute ?? $name;
+                $attributes["{$name}.{$key}"] = LazyString::of(
+                    $config->attribute ?? $name,
+                );
             }
         }
 
-        return [...$attributes, ...$this->scopes->attributes()];
+        return $attributes;
+    }
+
+    /**
+     * @return array<string, string|Stringable>
+     */
+    private function sortAttributes(): array
+    {
+        $attributes = [];
+        foreach ($this->definition->sorts as $name => $config) {
+            if ($config->attribute !== null) {
+                $attributes["sort.{$name}"] = LazyString::of(
+                    $config->attribute,
+                );
+            }
+        }
+
+        return $attributes;
     }
 
     /**

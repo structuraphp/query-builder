@@ -228,6 +228,9 @@ $scope->scope('recent')
 
 Sans `attribute()`, un argument s'appelle `scope.argument` dans les erreurs (`ofStatus.status`).
 
+Un message ou un attribut peut être une closure, qui ne s'exécute que quand
+une erreur est écrite : `->attribute(date: static fn () => __('scopes.date'))`.
+
 ## Casts
 
 `cast()` force la conversion d'un argument :

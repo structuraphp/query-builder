@@ -7,11 +7,16 @@ namespace StructuraPhp\QueryBuilder\Service;
 use Illuminate\Container\Container;
 use Illuminate\Contracts\Validation\Factory as ValidationFactory;
 use Illuminate\Contracts\Validation\Validator;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Http\FormRequest;
 use Override;
 use StructuraPhp\QueryBuilder\Contract\Query\FromModel;
 use StructuraPhp\QueryBuilder\ValueObject\QueryParameters;
 
+/**
+ * @template TBuilder of Builder<covariant Model> = Builder<Model>
+ */
 abstract class QueryRequest extends FormRequest
 {
     private ?Definition $definition = null;
@@ -37,6 +42,9 @@ abstract class QueryRequest extends FormRequest
         return $this->query->all();
     }
 
+    /**
+     * @return QueryParameters<TBuilder>
+     */
     public function parameters(): QueryParameters
     {
         /** @var array<string, mixed> $validated */
@@ -45,24 +53,34 @@ abstract class QueryRequest extends FormRequest
         /** @var array<string, mixed> $data */
         $data = $this->validationData();
 
-        return new QueryParameters($this->definition(), $validated, $data);
+        /** @var QueryParameters<TBuilder> $parameters */
+        $parameters = new QueryParameters(
+            $this->definition(),
+            $validated,
+            $data,
+        );
+
+        return $parameters;
     }
 
     /**
-     * @return class-string<FromModel>
+     * Public for the documentation generators, which read what the query
+     * declares.
+     *
+     * Not `$this->container`: they build the request with `new`, without
+     * setting it.
      */
-    abstract protected function getQuery(): string;
-
-    /**
-     * Not `$this->container`: documentation generators (Scramble) build the
-     * request with `new`, without setting it.
-     */
-    protected function definition(): Definition
+    public function definition(): Definition
     {
         return $this->definition ??= Definition::fromQuery(
             Container::getInstance()->make($this->getQuery()),
         );
     }
+
+    /**
+     * @return class-string<FromModel<TBuilder>>
+     */
+    abstract protected function getQuery(): string;
 
     #[Override]
     protected function createDefaultValidator(

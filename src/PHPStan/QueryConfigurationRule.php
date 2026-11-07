@@ -4,14 +4,19 @@ declare(strict_types=1);
 
 namespace StructuraPhp\QueryBuilder\PHPStan;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use PhpParser\Node;
 use PHPStan\Analyser\Scope;
 use PHPStan\Node\CollectedDataNode;
+use PHPStan\Reflection\ClassReflection;
 use PHPStan\Reflection\ReflectionProvider;
 use PHPStan\Rules\IdentifierRuleError;
 use PHPStan\Rules\Rule;
 use PHPStan\Rules\RuleErrorBuilder;
+use PHPStan\Type\ObjectType;
+use PHPStan\Type\VerbosityLevel;
+use StructuraPhp\QueryBuilder\Contract\Query\FromModel;
 
 /**
  * Checks the configuration of each query class against its model, the
@@ -67,10 +72,8 @@ final readonly class QueryConfigurationRule implements Rule
      */
     private function check(string $class, array $methods): array
     {
-        $snapshot = QuerySnapshotFactory::create(
-            $this->reflection->getClass($class),
-            $methods,
-        );
+        $query = $this->reflection->getClass($class);
+        $snapshot = QuerySnapshotFactory::create($query, $methods);
 
         if (
             !$snapshot instanceof QuerySnapshot
@@ -84,6 +87,11 @@ final readonly class QueryConfigurationRule implements Rule
         $model = new ModelInspector($this->reflection, $snapshot->model);
         $name = $this->reflection->getClass($snapshot->model)->getName();
         $errors = [];
+        $error = $this->builderMismatch($query, $model);
+
+        if ($error instanceof IdentifierRuleError) {
+            $errors[] = $error;
+        }
 
         foreach ($snapshot->scopes as $scope) {
             $error = $this->scopeNotFound($scope, $model, $name);
@@ -94,6 +102,46 @@ final readonly class QueryConfigurationRule implements Rule
         }
 
         return [...$errors, ...ConfigurationChecker::check($snapshot, $model)];
+    }
+
+    /**
+     * builder() returns the builder declared by FromModel: a class the
+     * builder of the model is, for the same model.
+     */
+    private function builderMismatch(
+        ClassReflection $query,
+        ModelInspector $model,
+    ): ?IdentifierRuleError {
+        $builder = $model->builderClass();
+        $declared = new ObjectType($query->getName())
+            ->getTemplateType(FromModel::class, 'TBuilder');
+
+        if ($builder === null) {
+            return null;
+        }
+
+        $class = $this->reflection->getClass($builder);
+        $models = $declared->getTemplateType(Builder::class, 'TModel');
+        $matches = array_any(
+            $declared->getObjectClassNames(),
+            static fn (string $name): bool => $class->is($name),
+        ) && !$models->isSuperTypeOf(new ObjectType($model->name()))->no();
+
+        if ($matches) {
+            return null;
+        }
+
+        return RuleErrorBuilder::message(\sprintf(
+            'Query %s declares the builder %s, but %s builds a %s.',
+            $query->getName(),
+            $declared->describe(VerbosityLevel::typeOnly()),
+            $model->name(),
+            $class->getName(),
+        ))
+            ->identifier('structuraQueryBuilder.builderMismatch')
+            ->file($query->getFileName() ?? '')
+            ->line($query->getNativeReflection()->getStartLine())
+            ->build();
     }
 
     /**

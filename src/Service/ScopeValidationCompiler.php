@@ -7,6 +7,8 @@ namespace StructuraPhp\QueryBuilder\Service;
 use Closure;
 use Illuminate\Support\Fluent;
 use Illuminate\Validation\Rule;
+use Stringable;
+use StructuraPhp\QueryBuilder\ValueObject\LazyString;
 use StructuraPhp\QueryBuilder\ValueObject\ScopeArgument;
 
 /**
@@ -37,14 +39,16 @@ final readonly class ScopeValidationCompiler
     }
 
     /**
-     * @return array<string, string>
+     * A closure is resolved when Laravel writes an error, not before.
+     *
+     * @return array<string, string|Stringable>
      */
     public function messages(): array
     {
         $messages = [];
         foreach ($this->arguments() as $key => $argument) {
             foreach ($argument->messages as $rule => $message) {
-                $messages["{$key}.{$rule}"] = $message;
+                $messages["{$key}.{$rule}"] = LazyString::of($message);
             }
         }
 
@@ -52,7 +56,9 @@ final readonly class ScopeValidationCompiler
     }
 
     /**
-     * @return array<string, string>
+     * A closure is resolved when Laravel writes an error, not before.
+     *
+     * @return array<string, string|Stringable>
      */
     public function attributes(): array
     {
@@ -60,9 +66,11 @@ final readonly class ScopeValidationCompiler
         foreach ($this->definition->scopes as $name => [, $arguments]) {
             foreach (ScopeApplier::fromRequest($arguments) as $argument) {
                 $key = "{$name}.{$argument->name}";
-                $attributes[$key] = $argument->attribute ?? $key;
+                $attributes[$key] = LazyString::of(
+                    $argument->attribute ?? $key,
+                );
                 foreach ($argument->nestedAttributes as $path => $attribute) {
-                    $attributes["{$key}.{$path}"] = $attribute;
+                    $attributes["{$key}.{$path}"] = LazyString::of($attribute);
                 }
             }
         }

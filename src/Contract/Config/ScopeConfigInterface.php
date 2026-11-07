@@ -52,7 +52,9 @@ interface ScopeConfigInterface
     public function nested(array ...$rules): static;
 
     /**
-     * @param array<string, string> ...$messages
+     * A closure runs only if the error is written.
+     *
+     * @param array<string, Closure(): string|string> ...$messages
      */
     public function messages(array ...$messages): static;
 
@@ -60,7 +62,11 @@ interface ScopeConfigInterface
      * A name for the argument itself, or names by dot path inside it
      * (`['*.min' => 'minimum']`).
      *
-     * @param array<string, string>|string ...$attributes
+     * A closure runs only if an error is written.
+     *
+     * @param array<string, Closure(): string|string>
+     *     |(Closure(): string)
+     *     |string ...$attributes
      */
-    public function attribute(array|string ...$attributes): static;
+    public function attribute(array|Closure|string ...$attributes): static;
 }

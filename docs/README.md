@@ -14,6 +14,7 @@ sends, and what they produce: the SQL query, or the validation error (422).
 - [Relations](relations.md): eager load or count relations, with a
   condition.
 - [Pagination](pagination.md): offset, cursor or no pagination.
+- [OpenAPI](openapi.md): document the filter values with Scramble.
 - [PHPStan rules](phpstan.md): report configuration errors before any call.
 
 For installation and the quick start, see the [README](../README.md).
@@ -48,6 +49,19 @@ public function list(QueryParameters $parameters)
   the [context](context.md) of scopes and relation conditions.
 - `paginate()` returns a `LengthAwarePaginator` (`offset`), a
   `CursorPaginator` (`cursor`) or a `Collection` (`none`).
+- For PHPStan, `builder()` returns the builder the query declares, and
+  `paginate()` keeps its model. Without a declaration, it is a
+  `Builder<Model>`:
+
+```php
+/** @implements FromModel<ArticleBuilder> */
+final class ArticleQuery implements FromModel, WithFilter { /* … */ }
+
+/** @extends QueryRequest<ArticleBuilder> */
+final class ArticleQueryRequest extends QueryRequest { /* … */ }
+
+$parameters->builder()->published(); // a method of ArticleBuilder
+```
 - The query class is resolved by the Laravel container: its constructor can
   receive dependencies.
 - The request's own `messages()` and `attributes()` stay available and win
@@ -67,7 +81,8 @@ $page = $parameters->paginate($parameters->builder());
 
 [Scramble](https://scramble.dedoc.co) documents a `QueryRequest` like any
 form request: filters, scopes, sorts and pagination become query parameters
-(`title[value]`, `sort[date]`…), context arguments stay hidden.
+(`title[value]`, `sort[date]`…), context arguments stay hidden. See
+[OpenAPI](openapi.md) for the simple form of the filter values.
 
 ## Conventions
 

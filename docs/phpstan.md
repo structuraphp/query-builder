@@ -74,6 +74,25 @@ Query classes configured through injected closures are reported too: ignore
 this identifier for them. A closure given to `constrain()` is an argument,
 not a configuration: it is accepted.
 
+### `structuraQueryBuilder.builderMismatch`
+
+The builder a query declares for `builder()` is not the one its model builds,
+or is for another model:
+
+```php
+/** @implements FromModel<ArticleBuilder> */ // Query App\Queries\ArticleQuery declares the builder
+final class ArticleQuery implements FromModel // App\Builders\ArticleBuilder, but App\Models\Article
+{                                              // builds a Illuminate\Database\Eloquent\Builder.
+    public function getModel(): string
+    {
+        return Article::class;
+    }
+}
+```
+
+A parent class of the builder, such as `Builder<Article>`, is accepted. A
+model whose builder cannot be determined statically is not checked.
+
 ## Condition closures
 
 The extension gives the first parameter of a

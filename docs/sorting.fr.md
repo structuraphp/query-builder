@@ -89,6 +89,23 @@ FROM articles ORDER BY comments_count DESC
 Sans aucun tri déclaré, `sort` est interdit : `The sort field is
 prohibited.`
 
+### Traduire les erreurs
+
+```php
+$sort->sort('date')
+    ->column('created_at')
+    ->attribute(static fn () => __('sorts.date'))   // nom dans les erreurs
+    ->messages([                                    // par nom de règle
+        'in' => static fn () => __('sorts.direction'),
+        'required' => 'Choisissez un sens.',
+    ]);
+```
+
+- `in` : le sens n'est ni `asc` ni `desc` ; `required` : il est vide.
+- Sans `attribute()`, le tri s'appelle `sort.date` dans les erreurs.
+- Un message ou un attribut est une chaîne, ou une closure qui ne s'exécute
+  que quand une erreur est écrite.
+
 ## Erreurs de configuration
 
 Une `ConfigurationException` est levée à la lecture de la query :

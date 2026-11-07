@@ -217,6 +217,10 @@ $filter->filter('statut')               // public name, in the URL
 - `rules()` adds Laravel rules to the validation of `value`.
 - `messages()` replaces the message of a rule, by rule name.
 - `attribute()` names the filter in the default messages.
+- A message or an attribute is a string, or a closure that returns it. The
+  closure only runs when an error is written, never for a valid request:
+  `->messages(['in' => static fn () => __('filters.status')])`. The same goes
+  for scopes, sorts and the pagination.
 
 ```
 GET /articles?statut[value]=archived
