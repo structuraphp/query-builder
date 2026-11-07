@@ -299,22 +299,24 @@ final class ScopeReflector
     ): array {
         $class = $this->typeName($parameter);
 
-        $builtin = match ($class) {
-            'int' => Type::Integer,
-            'float' => Type::Float,
-            'bool' => Type::Boolean,
-            'string' => Type::String,
-            default => null,
+        return match ($class) {
+            'int' => $this->builtin(Type::Integer),
+            'float' => $this->builtin(Type::Float),
+            'bool' => $this->builtin(Type::Boolean),
+            'string' => $this->builtin(Type::String),
+            'array' => [['array'], static fn (mixed $value): mixed => $value],
+            default => $this->fromClass($config, $parameter, $class),
         };
+    }
 
-        if ($builtin !== null) {
-            return $this->builtin($builtin);
-        }
-
-        if ($class === 'array') {
-            return [['array'], static fn (mixed $value): mixed => $value];
-        }
-
+    /**
+     * @return Resolved
+     */
+    private function fromClass(
+        ScopeConfig $config,
+        ReflectionParameter $parameter,
+        ?string $class,
+    ): array {
         if ($class !== null && is_subclass_of($class, BackedEnum::class)) {
             return $this->enum($class);
         }

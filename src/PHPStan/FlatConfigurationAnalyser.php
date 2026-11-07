@@ -9,6 +9,7 @@ use PhpParser\Node\Expr;
 use PhpParser\Node\Expr\Assign;
 use PhpParser\Node\Expr\MethodCall;
 use PhpParser\Node\Expr\Variable;
+use PhpParser\Node\Stmt;
 use PhpParser\Node\Stmt\ClassMethod;
 use PhpParser\Node\Stmt\Expression;
 use PhpParser\Node\Stmt\Nop;
@@ -36,6 +37,31 @@ final class FlatConfigurationAnalyser
         $bound = [$parameter];
         $lines = [];
 
+        foreach ($this->statements($method) as $stmt) {
+            $flat = $this->statement($stmt, $bound);
+
+            if ($flat === null) {
+                $lines[$stmt->getStartLine()] = null;
+
+                continue;
+            }
+
+            [$args, $local] = $flat;
+            $lines += array_fill_keys($args, null);
+
+            if ($local !== null) {
+                $bound[] = $local;
+            }
+        }
+
+        return array_keys($lines);
+    }
+
+    /**
+     * @return array<Stmt>
+     */
+    private function statements(ClassMethod $method): array
+    {
         $stmts = array_filter(
             $method->stmts ?? [],
             static fn (Node $stmt): bool => !$stmt instanceof Nop,
@@ -47,43 +73,44 @@ final class FlatConfigurationAnalyser
             array_pop($stmts);
         }
 
-        foreach ($stmts as $stmt) {
-            $expr = $stmt instanceof Expression ? $stmt->expr : null;
-            $target = null;
+        return $stmts;
+    }
 
-            if ($expr instanceof Assign) {
-                $target = $expr->var;
-                $expr = $expr->expr;
-            }
+    /**
+     * @param list<string> $bound
+     *
+     * @return null|array{list<int>, ?string} lines of the misused objects
+     *                                        and the variable assigned, null
+     *                                        when the statement is not a
+     *                                        chain of calls
+     */
+    private function statement(Stmt $stmt, array $bound): ?array
+    {
+        $expr = $stmt instanceof Expression ? $stmt->expr : null;
+        $target = null;
 
-            $args = $expr instanceof MethodCall
-                ? $this->chainArguments($expr, $bound)
-                : null;
-
-            // Only a plain local variable: not $$name, nor a property.
-            $local = $target instanceof Variable && \is_string($target->name)
-                ? $target->name
-                : null;
-
-            if (
-                $args === null
-                || $target instanceof Expr && $local === null
-            ) {
-                $lines[$stmt->getStartLine()] = null;
-
-                continue;
-            }
-
-            foreach ($args as $line) {
-                $lines[$line] = null;
-            }
-
-            if ($local !== null) {
-                $bound[] = $local;
-            }
+        if ($expr instanceof Assign) {
+            $target = $expr->var;
+            $expr = $expr->expr;
         }
 
-        return array_keys($lines);
+        $args = $expr instanceof MethodCall
+            ? $this->chainArguments($expr, $bound)
+            : null;
+
+        // Only a plain local variable: not $$name, nor a property.
+        $local = $target instanceof Variable && \is_string($target->name)
+            ? $target->name
+            : null;
+
+        if (
+            $args === null
+            || $target instanceof Expr && $local === null
+        ) {
+            return null;
+        }
+
+        return [$args, $local];
     }
 
     /**

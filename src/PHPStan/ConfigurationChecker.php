@@ -6,9 +6,7 @@ namespace StructuraPhp\QueryBuilder\PHPStan;
 
 use PHPStan\Rules\IdentifierRuleError;
 use PHPStan\Rules\RuleErrorBuilder;
-use StructuraPhp\QueryBuilder\Enum\PaginationMode;
 use StructuraPhp\QueryBuilder\Service\Definition;
-use StructuraPhp\QueryBuilder\ValueObject\Config\Pagination;
 
 /**
  * The checks Definition::fromQuery() makes at runtime, but on the calls of
@@ -20,8 +18,6 @@ use StructuraPhp\QueryBuilder\ValueObject\Config\Pagination;
  */
 final class ConfigurationChecker
 {
-    private const string MODE = PaginationMode::class . '::';
-
     /**
      * @return list<IdentifierRuleError>
      */
@@ -47,7 +43,7 @@ final class ConfigurationChecker
             self::push($errors, self::sort($sort, $sorts, $model));
         }
 
-        self::push($errors, self::pagination($query->pagination));
+        self::push($errors, PaginationChecker::check($query->pagination));
 
         foreach ($query->defaultSorts as $default) {
             self::push($errors, self::defaultSort($default, $query));
@@ -141,14 +137,14 @@ final class ConfigurationChecker
             return null;
         }
 
-        if (self::last($filter['options'], 'type') === null) {
+        if (QuerySnapshot::last($filter['options'], 'type') === null) {
             return self::error($filter['call'], \sprintf(
                 'Filter "%s" has no type.',
                 $name,
             ));
         }
 
-        $items = self::last($filter['options'], 'maxitems');
+        $items = QuerySnapshot::last($filter['options'], 'maxitems');
         if ($items !== null && self::below($items, 'max')) {
             return self::error($items, \sprintf(
                 'Filter "%s" must accept at least one item in in mode.',
@@ -156,7 +152,7 @@ final class ConfigurationChecker
             ));
         }
 
-        $length = self::last($filter['options'], 'maxlength');
+        $length = QuerySnapshot::last($filter['options'], 'maxlength');
         if ($length !== null && self::below($length, 'max')) {
             return self::error($length, \sprintf(
                 'Filter "%s" must accept at least one character.',
@@ -211,13 +207,13 @@ final class ConfigurationChecker
             ));
         }
 
-        $count = self::last($sort['options'], 'count');
+        $count = QuerySnapshot::last($sort['options'], 'count');
 
         if ($count === null) {
             return null;
         }
 
-        if (self::last($sort['options'], 'column') !== null) {
+        if (QuerySnapshot::last($sort['options'], 'column') !== null) {
             return self::error($count, \sprintf(
                 'Sort "%s" cannot have both column() and count().',
                 $name,
@@ -276,36 +272,27 @@ final class ConfigurationChecker
         QuerySnapshot $query,
     ): ?IdentifierRuleError {
         $name = QuerySnapshot::string($default, 0, 'name');
+        $names = self::names($query->sorts);
 
-        if ($name === null) {
+        // A sort without a readable name may be this one.
+        if ($name === null || \in_array(null, $names, true)) {
             return null;
         }
 
-        $declared = null;
+        $index = array_search($name, $names, true);
 
-        foreach ($query->sorts as $sort) {
-            $other = QuerySnapshot::string($sort['call'], 0, 'name');
-
-            // A sort without a readable name may be this one.
-            if ($other === null) {
-                return null;
-            }
-
-            if ($other === $name && $declared === null) {
-                $declared = $sort;
-            }
-        }
-
-        if ($declared === null) {
+        if ($index === false) {
             return self::error($default, \sprintf(
                 'Default sort "%s" is not declared.',
                 $name,
             ));
         }
 
+        $count = QuerySnapshot::last($query->sorts[$index]['options'], 'count');
+
         if (
-            self::last($declared['options'], 'count') !== null
-            && self::defaultMode($query->pagination) === self::MODE . 'Cursor'
+            $count !== null
+            && PaginationChecker::cursorByDefault($query->pagination)
         ) {
             return self::error($default, \sprintf(
                 'Default sort "%s" counts a relation: it cannot be used'
@@ -373,30 +360,20 @@ final class ConfigurationChecker
         }
 
         $dot = strrpos($name, '.');
+        $names = self::names($query->relations);
 
-        if ($dot === false) {
+        // A relation without a readable name may be the parent.
+        if ($dot === false || \in_array(null, $names, true)) {
+            return null;
+        }
+
+        if (array_search($name, $names, true) !== $index) {
             return null;
         }
 
         $parent = substr($name, 0, $dot);
-        $declared = [];
 
-        foreach ($query->relations as $position => $other) {
-            $other = QuerySnapshot::string($other['call'], 0, 'name');
-
-            // A relation without a readable name may be the parent.
-            if ($other === null) {
-                return null;
-            }
-
-            if ($other === $name && $position < $index) {
-                return null;
-            }
-
-            $declared[] = $other;
-        }
-
-        return \in_array($parent, $declared, true)
+        return \in_array($parent, $names, true)
             ? null
             : self::error($relation['call'], \sprintf(
                 'Relation "%s" needs its parent "%s" declared.',
@@ -428,138 +405,22 @@ final class ConfigurationChecker
     }
 
     /**
-     * @param list<Call> $calls
-     */
-    private static function pagination(array $calls): ?IdentifierRuleError
-    {
-        $default = self::last($calls, 'default');
-        $allow = self::last($calls, 'allow');
-        $at = $default ?? $allow;
-
-        $mode = self::defaultMode($calls);
-        $allowed = $allow === null
-            ? array_map(
-                static fn (PaginationMode $mode): string => self::MODE
-                    . $mode->name,
-                new Pagination()->allowed,
-            )
-            : self::modes($allow);
-
-        // Without a call, the default mode is allowed.
-        if (
-            $at === null
-            || $mode === null
-            || $allowed === null
-            || \in_array($mode, $allowed, true)
-        ) {
-            return self::limit($calls);
-        }
-
-        return self::error($at, \sprintf(
-            'Default pagination mode "%s" is not allowed.',
-            strtolower(substr($mode, \strlen(self::MODE))),
-        ));
-    }
-
-    /**
-     * @param list<Call> $calls
-     */
-    private static function limit(array $calls): ?IdentifierRuleError
-    {
-        $limit = self::last($calls, 'limit');
-        $max = self::last($calls, 'maxlimit');
-        $at = $limit ?? $max;
-
-        $value = $limit === null
-            ? new Pagination()->limit
-            : QuerySnapshot::int($limit, 0, 'limit');
-        $ceiling = $max === null
-            ? new Pagination()->maxLimit
-            : QuerySnapshot::int($max, 0, 'max');
-
-        if ($at === null || $value === null || $ceiling === null) {
-            return null;
-        }
-
-        return $value < 1 || $value > $ceiling
-            ? self::error($at, \sprintf(
-                'Pagination limit must be between 1 and %d.',
-                $ceiling,
-            ))
-            : null;
-    }
-
-    /**
-     * The `Class::Case` of the default mode; null when it cannot be read.
+     * The name of each entity, null when it cannot be read.
      *
-     * @param list<Call> $calls
-     */
-    private static function defaultMode(array $calls): ?string
-    {
-        $default = self::last($calls, 'default');
-
-        return $default === null
-            ? self::MODE . new Pagination()->default->name
-            : self::mode($default, 0, 'mode');
-    }
-
-    /**
-     * The `Class::Case` of every mode of allow(); null when one cannot be
-     * read.
+     * @param list<Entity> $entities
      *
-     * @param Call $allow
-     *
-     * @return null|list<string>
+     * @return list<?string>
      */
-    private static function modes(array $allow): ?array
+    private static function names(array $entities): array
     {
-        $modes = [];
-        $counter = \count($allow['args']);
-
-        for ($i = 0; $i < $counter; $i++) {
-            $mode = self::mode($allow, $i, '');
-
-            if ($mode === null) {
-                return null;
-            }
-
-            $modes[] = $mode;
-        }
-
-        return $modes;
-    }
-
-    /**
-     * @param Call $call
-     */
-    private static function mode(
-        array $call,
-        int $position,
-        string $name,
-    ): ?string {
-        $case = QuerySnapshot::case($call, $position, $name);
-
-        return $case !== null && str_starts_with($case, self::MODE)
-            ? $case
-            : null;
-    }
-
-    /**
-     * @param list<Call> $calls
-     *
-     * @return null|Call
-     */
-    private static function last(array $calls, string $method): ?array
-    {
-        $found = null;
-
-        foreach ($calls as $call) {
-            if ($call['method'] === $method) {
-                $found = $call;
-            }
-        }
-
-        return $found;
+        return array_map(
+            static fn (array $entity): ?string => QuerySnapshot::string(
+                $entity['call'],
+                0,
+                'name',
+            ),
+            $entities,
+        );
     }
 
     /**

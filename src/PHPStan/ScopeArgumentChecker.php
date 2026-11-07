@@ -14,7 +14,10 @@ use StructuraPhp\QueryBuilder\Enum\Type;
  * library would raise; whatever cannot be read stops the checks after it.
  *
  * @phpstan-import-type Call from QuerySnapshot
+ * @phpstan-import-type CollectedArg from QuerySnapshot
  * @phpstan-import-type Entity from QuerySnapshot
+ *
+ * @phpstan-type Parameter array{name: string, type: ?string}
  */
 final class ScopeArgumentChecker
 {
@@ -137,22 +140,16 @@ final class ScopeArgumentChecker
     {
         $names = [];
 
-        foreach ($options as $option) {
-            if ($option['method'] !== 'context') {
-                continue;
+        foreach (self::args($options, 'context') as [, $arg, $option]) {
+            $name = \in_array($arg['kind'], ['string', 'class'], true)
+                ? $arg['value'] ?? null
+                : null;
+
+            if (!\is_string($name)) {
+                return null;
             }
 
-            foreach ($option['args'] as $arg) {
-                $name = \in_array($arg['kind'], ['string', 'class'], true)
-                    ? $arg['value'] ?? null
-                    : null;
-
-                if (!\is_string($name)) {
-                    return null;
-                }
-
-                $names[] = [$name, $option];
-            }
+            $names[] = [$name, $option];
         }
 
         return $names;
@@ -175,22 +172,37 @@ final class ScopeArgumentChecker
     ): array {
         $found = [];
 
-        foreach ($options as $option) {
-            if ($option['method'] !== $method) {
-                continue;
-            }
-
-            foreach ($option['args'] as $key => $arg) {
-                if (
-                    \is_string($key)
-                    && \in_array($arg['kind'], $kinds, true) === $in
-                ) {
-                    $found[] = [$key, $option];
-                }
+        foreach (self::args($options, $method) as [$key, $arg, $option]) {
+            if (
+                \is_string($key)
+                && \in_array($arg['kind'], $kinds, true) === $in
+            ) {
+                $found[] = [$key, $option];
             }
         }
 
         return $found;
+    }
+
+    /**
+     * The arguments of the calls to an option, each with its key and call.
+     *
+     * @param list<Call> $options
+     *
+     * @return iterable<array{int|string, CollectedArg, Call}>
+     */
+    private static function args(array $options, string $method): iterable
+    {
+        $calls = array_filter(
+            $options,
+            static fn (array $option): bool => $option['method'] === $method,
+        );
+
+        foreach ($calls as $option) {
+            foreach ($option['args'] as $key => $arg) {
+                yield [$key, $arg, $option];
+            }
+        }
     }
 
     /**
@@ -222,15 +234,13 @@ final class ScopeArgumentChecker
         );
         $groups[] = self::entries($options, 'attribute', ['strings'], true);
 
-        foreach ($groups as $group) {
-            foreach ($group as [$name, $call]) {
-                if (!\in_array($name, $arguments, true)) {
-                    return self::error($call, \sprintf(
-                        'Scope "%s" has no argument "%s".',
-                        $scope,
-                        $name,
-                    ));
-                }
+        foreach (array_merge(...$groups) as [$name, $call]) {
+            if (!\in_array($name, $arguments, true)) {
+                return self::error($call, \sprintf(
+                    'Scope "%s" has no argument "%s".',
+                    $scope,
+                    $name,
+                ));
             }
         }
 
@@ -253,49 +263,93 @@ final class ScopeArgumentChecker
 
         foreach ($signature->parameters as $parameter) {
             $argument = $parameter['name'];
+            $fromContext = \in_array($argument, $contextual, true);
+            $error = $fromContext
+                ? self::contextual($options, $name, $argument)
+                : self::argument($scope, $name, $parameter, $model);
 
-            if (\in_array($argument, $contextual, true)) {
-                $error = self::contextual($options, $name, $argument);
-
-                if ($error instanceof IdentifierRuleError) {
-                    return $error;
-                }
-
-                continue;
+            if ($error instanceof IdentifierRuleError) {
+                return $error;
             }
-
-            $cast = array_find(
-                array_reverse($options),
-                static fn (array $option): bool => $option['method'] === 'cast'
-                    && \array_key_exists($argument, $option['args']),
-            );
-            $valid = $cast === null
-                ? self::typed($parameter['type'], $model)
-                : self::castable($cast['args'][$argument], $model);
 
             // The arguments after an unreadable one are not looked at.
-            if ($valid === null) {
+            $cast = self::cast($options, $argument);
+            if (
+                !$fromContext
+                && self::valid($cast, $parameter, $model) === null
+            ) {
                 return null;
-            }
-
-            if (!$valid) {
-                return $cast === null
-                    ? self::error($scope['call'], \sprintf(
-                        'Scope "%s" argument "%s" needs a scalar, enum, date'
-                        . ' or array type, or an explicit cast().',
-                        $name,
-                        $argument,
-                    ))
-                    : self::error($cast, \sprintf(
-                        'Scope "%s" argument "%s" cast must be a Type, a'
-                        . ' backed enum or a closure.',
-                        $name,
-                        $argument,
-                    ));
             }
         }
 
         return null;
+    }
+
+    /**
+     * The error on the type, or the cast(), of an argument of the request.
+     *
+     * @param Entity $scope
+     * @param Parameter $parameter
+     */
+    private static function argument(
+        array $scope,
+        string $name,
+        array $parameter,
+        ModelInspector $model,
+    ): ?IdentifierRuleError {
+        $argument = $parameter['name'];
+        $cast = self::cast($scope['options'], $argument);
+
+        if (self::valid($cast, $parameter, $model) !== false) {
+            return null;
+        }
+
+        return $cast === null
+            ? self::error($scope['call'], \sprintf(
+                'Scope "%s" argument "%s" needs a scalar, enum, date'
+                . ' or array type, or an explicit cast().',
+                $name,
+                $argument,
+            ))
+            : self::error($cast, \sprintf(
+                'Scope "%s" argument "%s" cast must be a Type, a'
+                . ' backed enum or a closure.',
+                $name,
+                $argument,
+            ));
+    }
+
+    /**
+     * The last cast() of an argument.
+     *
+     * @param list<Call> $options
+     *
+     * @return null|Call
+     */
+    private static function cast(array $options, string $argument): ?array
+    {
+        return array_find(
+            array_reverse($options),
+            static fn (array $option): bool => $option['method'] === 'cast'
+                && \array_key_exists($argument, $option['args']),
+        );
+    }
+
+    /**
+     * Whether an argument needs no cast(), or has a valid one; null when it
+     * cannot be told.
+     *
+     * @param null|Call $cast
+     * @param Parameter $parameter
+     */
+    private static function valid(
+        ?array $cast,
+        array $parameter,
+        ModelInspector $model,
+    ): ?bool {
+        return $cast === null
+            ? self::typed($parameter['type'], $model)
+            : self::castable($cast['args'][$parameter['name']], $model);
     }
 
     /**

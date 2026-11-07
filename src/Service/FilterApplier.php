@@ -7,6 +7,7 @@ namespace StructuraPhp\QueryBuilder\Service;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Database\Query\Expression;
 use LogicException;
 use StructuraPhp\QueryBuilder\Enum\Mode;
@@ -71,9 +72,7 @@ final class FilterApplier
         }
 
         if ($type === Type::Date && $value instanceof CarbonImmutable) {
-            foreach (self::day($mode, $value) as $operator => $bound) {
-                $base->where($column, $operator, $bound);
-            }
+            self::day($base, $column, $mode, $value);
 
             return;
         }
@@ -98,20 +97,25 @@ final class FilterApplier
     /**
      * Bounds on the column itself rather than `DATE(column)`, so an index on
      * it stays usable. Bounds are `Y-m-d` strings: SQLite compares as text.
-     *
-     * @return array<string, string>
      */
-    private static function day(Mode $mode, CarbonImmutable $day): array
-    {
+    private static function day(
+        QueryBuilder $base,
+        string $column,
+        Mode $mode,
+        CarbonImmutable $day,
+    ): void {
         $start = $day->toDateString();
         $next = $day->addDay()->toDateString();
 
-        return match ($mode) {
+        $bounds = match ($mode) {
             Mode::Equal => ['>=' => $start, '<' => $next],
             Mode::GreaterThan => ['>=' => $next],
             Mode::LessOrEqual => ['<' => $next],
             default => [self::operator($mode) => $start],
         };
+        foreach ($bounds as $operator => $bound) {
+            $base->where($column, $operator, $bound);
+        }
     }
 
     /**

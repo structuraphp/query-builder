@@ -92,6 +92,26 @@ final readonly class QuerySnapshot
     }
 
     /**
+     * The last call to a method.
+     *
+     * @param list<Call> $calls
+     *
+     * @return null|Call
+     */
+    public static function last(array $calls, string $method): ?array
+    {
+        $found = null;
+
+        foreach ($calls as $call) {
+            if ($call['method'] === $method) {
+                $found = $call;
+            }
+        }
+
+        return $found;
+    }
+
+    /**
      * @param Call $call
      * @param list<string> $kinds
      *

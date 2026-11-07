@@ -94,19 +94,7 @@ final class Definition
         if ($query instanceof WithScope) {
             $scope = new Scope();
             $query->scope($scope);
-            $reflector = new ScopeReflector();
-            foreach ($scope->scopes as $config) {
-                $definition->assertName($config->name);
-                [$arguments, $onBuilder] = $reflector->reflect(
-                    $definition->model,
-                    $config,
-                );
-                $definition->scopes[$config->name] = [
-                    $config,
-                    $arguments,
-                    $onBuilder,
-                ];
-            }
+            $definition->addScopes($scope);
         }
 
         if ($query instanceof WithSort) {
@@ -118,31 +106,7 @@ final class Definition
         if ($query instanceof WithRelation) {
             $relation = new Relation();
             $query->relation($relation);
-            foreach ($relation->relations as $config) {
-                $definition->assertRelation($config->name);
-                if (isset($definition->relations[$config->name])) {
-                    throw new ConfigurationException(\sprintf(
-                        'Relation "%s" is declared twice.',
-                        $config->name,
-                    ));
-                }
-
-                $definition->relations[$config->name] = $config;
-            }
-
-            $definition->assertParents();
-
-            foreach ($relation->counts as $config) {
-                $definition->assertCountable($config->name);
-                if (isset($definition->counts[$config->name])) {
-                    throw new ConfigurationException(\sprintf(
-                        'Count "%s" is declared twice.',
-                        $config->name,
-                    ));
-                }
-
-                $definition->counts[$config->name] = $config;
-            }
+            $definition->addRelations($relation);
         }
 
         $definition->assertCursorSorts();
@@ -319,30 +283,23 @@ final class Definition
         $this->filters[$config->name] = $config;
     }
 
+    private function addScopes(Scope $scope): void
+    {
+        $reflector = new ScopeReflector();
+        foreach ($scope->scopes as $config) {
+            $this->assertName($config->name);
+            [$arguments, $onBuilder] = $reflector->reflect(
+                $this->model,
+                $config,
+            );
+            $this->scopes[$config->name] = [$config, $arguments, $onBuilder];
+        }
+    }
+
     private function addSort(Sort $sort): void
     {
         foreach ($sort->sorts as $config) {
-            $this->assertValidName($config->name);
-
-            if (isset($this->sorts[$config->name])) {
-                throw new ConfigurationException(\sprintf(
-                    'Sort "%s" is declared twice.',
-                    $config->name,
-                ));
-            }
-
-            if ($config->count !== null) {
-                if ($config->column !== null) {
-                    throw new ConfigurationException(\sprintf(
-                        'Sort "%s" cannot have both column() and count().',
-                        $config->name,
-                    ));
-                }
-
-                $this->assertCountable($config->count);
-            }
-
-            $this->sorts[$config->name] = $config;
+            $this->addSortConfig($config);
         }
 
         foreach ($sort->defaults as [$name]) {
@@ -355,6 +312,60 @@ final class Definition
         }
 
         $this->defaultSorts = $sort->defaults;
+    }
+
+    private function addSortConfig(SortConfig $config): void
+    {
+        $this->assertValidName($config->name);
+
+        if (isset($this->sorts[$config->name])) {
+            throw new ConfigurationException(\sprintf(
+                'Sort "%s" is declared twice.',
+                $config->name,
+            ));
+        }
+
+        if ($config->count !== null) {
+            if ($config->column !== null) {
+                throw new ConfigurationException(\sprintf(
+                    'Sort "%s" cannot have both column() and count().',
+                    $config->name,
+                ));
+            }
+
+            $this->assertCountable($config->count);
+        }
+
+        $this->sorts[$config->name] = $config;
+    }
+
+    private function addRelations(Relation $relation): void
+    {
+        foreach ($relation->relations as $config) {
+            $this->assertRelation($config->name);
+            if (isset($this->relations[$config->name])) {
+                throw new ConfigurationException(\sprintf(
+                    'Relation "%s" is declared twice.',
+                    $config->name,
+                ));
+            }
+
+            $this->relations[$config->name] = $config;
+        }
+
+        $this->assertParents();
+
+        foreach ($relation->counts as $config) {
+            $this->assertCountable($config->name);
+            if (isset($this->counts[$config->name])) {
+                throw new ConfigurationException(\sprintf(
+                    'Count "%s" is declared twice.',
+                    $config->name,
+                ));
+            }
+
+            $this->counts[$config->name] = $config;
+        }
     }
 
     private static function assertPagination(Pagination $pagination): void
