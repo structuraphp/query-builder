@@ -10,9 +10,7 @@ use Dedoc\Scramble\Support\Generator\Parameter;
 use Dedoc\Scramble\Support\Generator\Schema;
 use Dedoc\Scramble\Support\RouteInfo;
 use Override;
-use ReflectionNamedType;
 use StructuraPhp\QueryBuilder\Service\Definition;
-use StructuraPhp\QueryBuilder\Service\QueryRequest;
 
 /**
  * Documents which relations `with` and `count` accept.
@@ -26,7 +24,7 @@ final class RelationParametersExtension extends OperationExtension
     #[Override]
     public function handle(Operation $operation, RouteInfo $routeInfo): void
     {
-        $definition = $this->definition($routeInfo);
+        $definition = QueryDefinition::of($routeInfo);
 
         if (!$definition instanceof Definition) {
             return;
@@ -44,24 +42,6 @@ final class RelationParametersExtension extends OperationExtension
             'Relations to count',
             array_keys($definition->counts),
         );
-    }
-
-    private function definition(RouteInfo $routeInfo): ?Definition
-    {
-        $parameters = $routeInfo->reflectionMethod()?->getParameters() ?? [];
-
-        foreach ($parameters as $parameter) {
-            $type = $parameter->getType();
-
-            if (
-                $type instanceof ReflectionNamedType
-                && is_a($type->getName(), QueryRequest::class, true)
-            ) {
-                return new ($type->getName())()->definition();
-            }
-        }
-
-        return null;
     }
 
     /**
