@@ -21,6 +21,8 @@ use StructuraPhp\QueryBuilder\Service\ValidationCompiler;
 /**
  * Validated query parameters, detached from the HTTP request so a domain
  * service can build and paginate the query.
+ *
+ * @template-covariant TBuilder of Builder<covariant Model> = Builder<Model>
  */
 final readonly class QueryParameters
 {
@@ -39,7 +41,12 @@ final readonly class QueryParameters
      * Validates raw input outside of an HTTP request (console, job, test),
      * with the same rules, messages and attributes as a QueryRequest.
      *
+     * @template TQuery of Builder<covariant Model>
+     *
+     * @param FromModel<TQuery> $query
      * @param array<string, mixed> $input
+     *
+     * @return self<TQuery>
      *
      * @throws ValidationException
      */
@@ -63,7 +70,10 @@ final readonly class QueryParameters
         /** @var array<string, mixed> $validated */
         $validated = $instance->validate();
 
-        return new self($definition, $validated, $input);
+        /** @var self<TQuery> $parameters */
+        $parameters = new self($definition, $validated, $input);
+
+        return $parameters;
     }
 
     /**
@@ -78,12 +88,15 @@ final readonly class QueryParameters
      *                                                     constraints, by
      *                                                     name
      *
-     * @return Builder<Model>
+     * @return TBuilder
      */
     public function builder(array $context = []): Builder
     {
-        return new QueryApplier($this->definition)
+        /** @var TBuilder $query */
+        $query = new QueryApplier($this->definition)
             ->apply($this->validated, $this->input, $context);
+
+        return $query;
     }
 
     /**
