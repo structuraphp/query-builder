@@ -11,6 +11,7 @@
     },
     "require-dev": {
         "brianium/paratest": "^7.22",
+        "dedoc/scramble": "^0.13",
         "friendsofphp/php-cs-fixer": "^3.94",
         "infection/infection": "^0.32",
         "larastan/larastan": "^3.13",
@@ -21,6 +22,9 @@
         "phpunit/phpunit": "^11.5|^12.5|^13.0",
         "rector/rector": "^2.3",
         "shipmonk/composer-dependency-analyser": "^1.8"
+    },
+    "suggest": {
+        "dedoc/scramble": "Documents the scalar form of the filter values (ScalarFilterValueExtension)"
     },
     "license": "MIT",
     "autoload": {

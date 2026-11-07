@@ -12,6 +12,12 @@ return (new Configuration())
         __DIR__ . '/src/PHPStan',
         [ErrorType::DEV_DEPENDENCY_IN_PROD],
     )
+    // The Scramble extension only runs inside Scramble.
+    ->ignoreErrorsOnPackageAndPath(
+        'dedoc/scramble',
+        __DIR__ . '/src/Scramble',
+        [ErrorType::DEV_DEPENDENCY_IN_PROD],
+    )
     ->ignoreErrorsOnPackageAndPaths(
         'nikic/php-parser',
         [__DIR__ . '/src/PHPStan', __DIR__ . '/tests/PHPStan'],
