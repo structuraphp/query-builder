@@ -77,6 +77,26 @@ Les classes de query configurées par des closures injectées sont aussi
 signalées : ignorez cet identifiant pour elles. Une closure passée à
 `constrain()` est un argument, pas une configuration : elle est acceptée.
 
+### `structuraQueryBuilder.builderMismatch`
+
+Le builder qu'une query déclare pour `builder()` n'est pas celui que construit
+son modèle, ou concerne un autre modèle :
+
+```php
+/** @implements FromModel<ArticleBuilder> */ // Query App\Queries\ArticleQuery declares the builder
+final class ArticleQuery implements FromModel // App\Builders\ArticleBuilder, but App\Models\Article
+{                                              // builds a Illuminate\Database\Eloquent\Builder.
+    public function getModel(): string
+    {
+        return Article::class;
+    }
+}
+```
+
+Une classe parente du builder, comme `Builder<Article>`, est acceptée. Un
+modèle dont le builder ne peut pas être déterminé statiquement n'est pas
+vérifié.
+
 ## Closures des conditions
 
 L'extension donne au premier paramètre d'une closure de

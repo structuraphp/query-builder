@@ -53,6 +53,19 @@ public function list(QueryParameters $parameters)
   [contexte](context.fr.md) des scopes et des conditions de relation.
 - `paginate()` renvoie un `LengthAwarePaginator` (`offset`), un
   `CursorPaginator` (`cursor`) ou une `Collection` (`none`).
+- Pour PHPStan, `builder()` renvoie le builder que la query déclare, et
+  `paginate()` garde son modèle. Sans déclaration, c'est un
+  `Builder<Model>` :
+
+```php
+/** @implements FromModel<ArticleBuilder> */
+final class ArticleQuery implements FromModel, WithFilter { /* … */ }
+
+/** @extends QueryRequest<ArticleBuilder> */
+final class ArticleQueryRequest extends QueryRequest { /* … */ }
+
+$parameters->builder()->published(); // une méthode d'ArticleBuilder
+```
 - La classe de query est résolue par le container Laravel : son
   constructeur peut recevoir des dépendances.
 - Les méthodes `messages()` et `attributes()` de la request restent
