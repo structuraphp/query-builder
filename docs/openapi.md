@@ -67,6 +67,7 @@ action takes. Register it next to the other one:
     StructuraPhp\QueryBuilder\Scramble\ScalarFilterValueExtension::class,
     StructuraPhp\QueryBuilder\Scramble\RelationParametersExtension::class,
     StructuraPhp\QueryBuilder\Scramble\NumberBoundsExtension::class,
+    StructuraPhp\QueryBuilder\Scramble\PaginationParametersExtension::class,
 ],
 ```
 
@@ -102,6 +103,25 @@ The other bounds stay: `limit` keeps its `maximum: 100`.
 {"name": "rating[value][]", "schema": {"type": "array", "items": {"type": "number"}}}
 {"name": "page", "schema": {"type": "integer", "minimum": 1}}
 ```
+
+## Document the pagination
+
+Scramble reads the rules of `pagination`, `limit`, `page` and `cursor`, but
+not what the query configures around them. `PaginationParametersExtension`
+adds:
+
+- the default of `pagination` (`default()`) and of `limit` (`limit()`), and
+  `1` for `page`;
+- a description of each: `page` is read by the `offset` pagination only, and
+  `cursor` by the `cursor` one.
+
+```json
+{"name": "pagination", "description": "How the results are paginated.", "schema": {"type": "string", "enum": ["offset", "cursor"], "default": "offset"}}
+{"name": "limit", "description": "Number of results per page.", "schema": {"type": "integer", "default": 50, "minimum": 1, "maximum": 100}}
+```
+
+A parameter that no allowed mode reads is removed: `page` without `offset`,
+`cursor` without `cursor`, and `limit` as well when only `none` is allowed.
 
 `dedoc/scramble` is not a dependency of the library: the extension only works
 where Scramble is installed.
