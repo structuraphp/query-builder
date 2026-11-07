@@ -69,6 +69,7 @@ l'action. Enregistrez-la à côté de l'autre :
 'extensions' => [
     StructuraPhp\QueryBuilder\Scramble\ScalarFilterValueExtension::class,
     StructuraPhp\QueryBuilder\Scramble\RelationParametersExtension::class,
+    StructuraPhp\QueryBuilder\Scramble\NumberBoundsExtension::class,
 ],
 ```
 
@@ -85,6 +86,27 @@ l'action. Enregistrez-la à côté de l'autre :
   paramètre : il est retiré de l'opération.
 - Le motif accepte les espaces autour des noms, comme le serveur.
 - Une action sans paramètre `QueryRequest` est laissée telle quelle.
+
+## Retirer les bornes du serveur
+
+Deux bornes ne servent qu'à protéger le serveur, et font du bruit dans le
+document :
+
+- un float est `between` ±1.797e308, le plus grand float : sa règle doit être
+  lisible par Scramble, qui en fait un `minimum` et un `maximum` ;
+- `page` est plafonnée à `PHP_INT_MAX / maxLimit` (`92233720368547760` pour
+  une limite de 100), pour que le décalage de Laravel reste un entier.
+
+Un client généré depuis le document les arrondit, ou les refuse.
+`NumberBoundsExtension` retire tout `minimum` ou `maximum`, sur un nombre ou
+sur les éléments d'une liste, qu'un nombre JSON ne peut pas représenter
+exactement (au-delà de 2^53 - 1). Les autres bornes restent : `limit`
+garde son `maximum: 100`.
+
+```json
+{"name": "rating[value][]", "schema": {"type": "array", "items": {"type": "number"}}}
+{"name": "page", "schema": {"type": "integer", "minimum": 1}}
+```
 
 `dedoc/scramble` n'est pas une dépendance de la librairie : l'extension ne
 fonctionne que là où Scramble est installé.
