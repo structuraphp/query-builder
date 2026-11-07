@@ -149,6 +149,34 @@ La réponse est la liste des lignes, sans clés de pagination.
 | `?page=0`                         | `page` : The page field must be at least 1.            |
 | `?pagination=none` (non autorisé) | `pagination` : The selected pagination is invalid.     |
 
+### Traduire les erreurs
+
+Chaque paramètre (`pagination`, `limit`, `page`, `cursor`) a son attribut et
+ses messages, en arguments nommés :
+
+```php
+$pagination
+    ->attribute(
+        limit: static fn () => __('pagination.limit'),  // nom dans les erreurs
+        page: 'numéro de page',
+    )
+    ->messages(                                         // par nom de règle
+        limit: ['max' => static fn () => __('pagination.trop')],
+        pagination: ['in' => 'Pagination inconnue.'],
+    );
+```
+
+| Paramètre    | Règles                            |
+|--------------|-----------------------------------|
+| `pagination` | `in`                              |
+| `limit`      | `integer`, `min`, `max`           |
+| `page`       | `integer`, `min`, `max`           |
+| `cursor`     | `string`, `in` (illisible)        |
+
+Un message ou un attribut est une chaîne, ou une closure qui ne s'exécute que
+quand une erreur est écrite. Le message `in` de `cursor` s'applique aussi à un
+curseur illisible.
+
 ## Erreurs de configuration
 
 Une `ConfigurationException` est levée à la lecture de la query :

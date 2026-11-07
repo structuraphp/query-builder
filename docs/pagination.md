@@ -147,6 +147,34 @@ The response is the list of rows, without pagination keys.
 | `?page=0`                        | `page`: The page field must be at least 1.            |
 | `?pagination=none` (not allowed) | `pagination`: The selected pagination is invalid.     |
 
+### Translating the errors
+
+Each parameter (`pagination`, `limit`, `page`, `cursor`) takes its own
+attribute and messages, by named argument:
+
+```php
+$pagination
+    ->attribute(
+        limit: static fn () => __('pagination.limit'),  // name in errors
+        page: 'page number',
+    )
+    ->messages(                                         // by rule name
+        limit: ['max' => static fn () => __('pagination.too_many')],
+        pagination: ['in' => 'Unknown pagination.'],
+    );
+```
+
+| Parameter    | Rules                          |
+|--------------|--------------------------------|
+| `pagination` | `in`                           |
+| `limit`      | `integer`, `min`, `max`        |
+| `page`       | `integer`, `min`, `max`        |
+| `cursor`     | `string`, `in` (unreadable)    |
+
+A message or an attribute is a string, or a closure that only runs when an
+error is written. The `in` message of `cursor` also applies to a cursor that
+cannot be read.
+
 ## Configuration errors
 
 A `ConfigurationException` is thrown when the query is read:

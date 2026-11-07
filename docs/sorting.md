@@ -84,6 +84,23 @@ FROM articles ORDER BY comments_count DESC
 Without any declared sort, `sort` is forbidden: `The sort field is
 prohibited.`
 
+### Translating the errors
+
+```php
+$sort->sort('date')
+    ->column('created_at')
+    ->attribute(static fn () => __('sorts.date'))   // name in errors
+    ->messages([                                    // by rule name
+        'in' => static fn () => __('sorts.direction'),
+        'required' => 'Choose a direction.',
+    ]);
+```
+
+- `in`: the direction is not `asc` or `desc`; `required`: it is empty.
+- Without `attribute()`, the sort is named `sort.date` in the errors.
+- A message or an attribute is a string, or a closure that only runs when an
+  error is written.
+
 ## Configuration errors
 
 A `ConfigurationException` is thrown when the query is read:
