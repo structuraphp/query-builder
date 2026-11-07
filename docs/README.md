@@ -14,6 +14,7 @@ sends, and what they produce: the SQL query, or the validation error (422).
 - [Relations](relations.md): eager load or count relations, with a
   condition.
 - [Pagination](pagination.md): offset, cursor or no pagination.
+- [OpenAPI](openapi.md): document the filter values with Scramble.
 - [PHPStan rules](phpstan.md): report configuration errors before any call.
 
 For installation and the quick start, see the [README](../README.md).
@@ -80,7 +81,8 @@ $page = $parameters->paginate($parameters->builder());
 
 [Scramble](https://scramble.dedoc.co) documents a `QueryRequest` like any
 form request: filters, scopes, sorts and pagination become query parameters
-(`title[value]`, `sort[date]`…), context arguments stay hidden.
+(`title[value]`, `sort[date]`…), context arguments stay hidden. See
+[OpenAPI](openapi.md) for the simple form of the filter values.
 
 ## Conventions
 
