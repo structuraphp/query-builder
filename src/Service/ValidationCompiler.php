@@ -10,10 +10,12 @@ use Illuminate\Support\Fluent;
 use Illuminate\Translation\PotentiallyTranslatedString;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
+use Stringable;
 use StructuraPhp\QueryBuilder\Enum\Direction;
 use StructuraPhp\QueryBuilder\Enum\Mode;
 use StructuraPhp\QueryBuilder\Enum\PaginationMode;
 use StructuraPhp\QueryBuilder\Enum\Type;
+use StructuraPhp\QueryBuilder\ValueObject\LazyString;
 use StructuraPhp\QueryBuilder\ValueObject\ScopeArgument;
 use Throwable;
 
@@ -106,7 +108,9 @@ final readonly class ValidationCompiler
     }
 
     /**
-     * @return array<string, string>
+     * A closure is resolved when Laravel writes an error, not before.
+     *
+     * @return array<string, string|Stringable>
      */
     public function messages(): array
     {
@@ -116,6 +120,7 @@ final readonly class ValidationCompiler
         $messages = \is_string($invalid) ? ['sort.array' => $invalid] : [];
         foreach ($this->definition->filters as $name => $config) {
             foreach ($config->messages as $rule => $message) {
+                $message = LazyString::of($message);
                 $messages["{$name}.value.{$rule}"] = $message;
                 $messages["{$name}.value.*.{$rule}"] = $message;
             }
@@ -125,8 +130,20 @@ final readonly class ValidationCompiler
             foreach ($arguments as $argument) {
                 $key = "{$name}.{$argument->name}";
                 foreach ($argument->messages as $rule => $message) {
-                    $messages["{$key}.{$rule}"] = $message;
+                    $messages["{$key}.{$rule}"] = LazyString::of($message);
                 }
+            }
+        }
+
+        foreach ($this->definition->sorts as $name => $config) {
+            foreach ($config->messages as $rule => $message) {
+                $messages["sort.{$name}.{$rule}"] = LazyString::of($message);
+            }
+        }
+
+        foreach ($this->definition->pagination->messages as $key => $rules) {
+            foreach ($rules as $rule => $message) {
+                $messages["{$key}.{$rule}"] = LazyString::of($message);
             }
         }
 
@@ -134,25 +151,44 @@ final readonly class ValidationCompiler
     }
 
     /**
-     * @return array<string, string>
+     * A closure is resolved when Laravel writes an error, not before.
+     *
+     * @return array<string, string|Stringable>
      */
     public function attributes(): array
     {
         $attributes = [];
         foreach ($this->definition->filters as $name => $config) {
             foreach (['value', 'value.*', 'mode', 'not'] as $key) {
-                $attributes["{$name}.{$key}"] = $config->attribute ?? $name;
+                $attributes["{$name}.{$key}"] = LazyString::of(
+                    $config->attribute ?? $name,
+                );
             }
         }
 
         foreach ($this->definition->scopes as $name => [, $arguments]) {
             foreach (QueryApplier::fromRequest($arguments) as $argument) {
                 $key = "{$name}.{$argument->name}";
-                $attributes[$key] = $argument->attribute ?? $key;
+                $attributes[$key] = LazyString::of(
+                    $argument->attribute ?? $key,
+                );
                 foreach ($argument->nestedAttributes as $path => $attribute) {
-                    $attributes["{$key}.{$path}"] = $attribute;
+                    $attributes["{$key}.{$path}"] = LazyString::of($attribute);
                 }
             }
+        }
+
+        foreach ($this->definition->sorts as $name => $config) {
+            if ($config->attribute !== null) {
+                $attributes["sort.{$name}"] = LazyString::of(
+                    $config->attribute,
+                );
+            }
+        }
+
+        $configured = $this->definition->pagination->attributes;
+        foreach ($configured as $key => $attribute) {
+            $attributes[$key] = LazyString::of($attribute);
         }
 
         return $attributes;

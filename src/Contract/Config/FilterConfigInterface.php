@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace StructuraPhp\QueryBuilder\Contract\Config;
 
+use Closure;
 use StructuraPhp\QueryBuilder\Enum\Type;
 
 interface FilterConfigInterface
@@ -21,11 +22,16 @@ interface FilterConfigInterface
     public function rules(array $rules): static;
 
     /**
-     * @param array<string, string> $messages
+     * A closure runs only if the error is written.
+     *
+     * @param array<string, Closure(): string|string> $messages
      */
     public function messages(array $messages): static;
 
-    public function attribute(string $attribute): static;
+    /**
+     * @param Closure(): string|string $attribute
+     */
+    public function attribute(Closure|string $attribute): static;
 
     /**
      * Adds the `null` mode: `IS NULL`, or `IS NOT NULL` with `not`.

@@ -4,13 +4,16 @@ declare(strict_types=1);
 
 namespace StructuraPhp\QueryBuilder\Service;
 
+use Illuminate\Container\Container;
 use Illuminate\Contracts\Pagination\CursorPaginator;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Contracts\Validation\Factory as ValidationFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\QueryException;
 use Illuminate\Pagination\Cursor;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use LogicException;
 use StructuraPhp\QueryBuilder\Enum\PaginationMode;
@@ -91,7 +94,7 @@ final class QueryPaginator
         // Laravel reads an undecodable cursor as the first page, and binds
         // the items of a list as if they were several values.
         if ($cursor !== null && !$this->readable($cursor)) {
-            throw $this->invalidCursor();
+            throw $this->invalidCursor($definition);
         }
 
         try {
@@ -99,11 +102,11 @@ final class QueryPaginator
                 ->cursorPaginate($limit, ['*'], 'cursor', $cursor)
                 ->withQueryString();
         } catch (UnexpectedValueException) {
-            throw $this->invalidCursor();
+            throw $this->invalidCursor($definition);
         } catch (QueryException $e) {
             // A tampered cursor value can be rejected by a strict engine
             // (e.g. text against a PostgreSQL bigint).
-            throw $cursor === null ? $e : $this->invalidCursor();
+            throw $cursor === null ? $e : $this->invalidCursor($definition);
         }
     }
 
@@ -118,10 +121,22 @@ final class QueryPaginator
         );
     }
 
-    private function invalidCursor(): ValidationException
+    /**
+     * Written by the validator, so the message and the name of `cursor` are
+     * the ones the query configures.
+     */
+    private function invalidCursor(Definition $definition): ValidationException
     {
-        return ValidationException::withMessages([
-            'cursor' => trans('validation.in', ['attribute' => 'cursor']),
-        ]);
+        $compiler = new ValidationCompiler($definition);
+        $validator = Container::getInstance()
+            ->make(ValidationFactory::class)
+            ->make(
+                ['cursor' => 'invalid'],
+                ['cursor' => [Rule::in([])]],
+                $compiler->messages(),
+                $compiler->attributes(),
+            );
+
+        return new ValidationException($validator);
     }
 }

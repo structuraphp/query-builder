@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace StructuraPhp\QueryBuilder\ValueObject\Config;
 
+use Closure;
 use StructuraPhp\QueryBuilder\Contract\Config\FilterConfigInterface;
 use StructuraPhp\QueryBuilder\Enum\Type;
 
@@ -16,10 +17,11 @@ final class FilterConfig implements FilterConfigInterface
     /** @var list<mixed> */
     public private(set) array $rules = [];
 
-    /** @var array<string, string> */
+    /** @var array<string, Closure(): string|string> */
     public private(set) array $messages = [];
 
-    public private(set) ?string $attribute = null;
+    /** @var null|(Closure(): string)|string */
+    public private(set) Closure|string|null $attribute = null;
 
     public private(set) bool $nullable = false;
 
@@ -59,7 +61,7 @@ final class FilterConfig implements FilterConfigInterface
         return $this;
     }
 
-    public function attribute(string $attribute): static
+    public function attribute(Closure|string $attribute): static
     {
         $this->attribute = $attribute;
 

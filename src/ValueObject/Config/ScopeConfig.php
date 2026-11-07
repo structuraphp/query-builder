@@ -35,13 +35,13 @@ final class ScopeConfig implements ScopeConfigInterface
     /** @var array<string, array<string, list<mixed>>> */
     public private(set) array $nested = [];
 
-    /** @var array<string, array<string, string>> */
+    /** @var array<string, array<string, Closure(): string|string>> */
     public private(set) array $messages = [];
 
-    /** @var array<string, string> */
+    /** @var array<string, Closure(): string|string> */
     public private(set) array $attributes = [];
 
-    /** @var array<string, array<string, string>> by dot path */
+    /** @var array<string, array<string, Closure(): string|string>> */
     public private(set) array $nestedAttributes = [];
 
     public function __construct(
@@ -104,10 +104,10 @@ final class ScopeConfig implements ScopeConfigInterface
         return $this;
     }
 
-    public function attribute(array|string ...$attributes): static
+    public function attribute(array|Closure|string ...$attributes): static
     {
         foreach ($this->named($attributes) as $name => $attribute) {
-            if (\is_string($attribute)) {
+            if (!\is_array($attribute)) {
                 $this->attributes[$name] = $attribute;
             } else {
                 $this->nestedAttributes[$name] = [

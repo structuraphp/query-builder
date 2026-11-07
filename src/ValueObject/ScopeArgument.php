@@ -12,7 +12,8 @@ final readonly class ScopeArgument
      * @param list<mixed> $rules type rule then custom rules, without the
      *                           presence rules
      * @param list<mixed> $each
-     * @param array<string, string> $messages
+     * @param array<string, Closure(): string|string> $messages
+     * @param null|(Closure(): string)|string $attribute
      * @param Closure(mixed): mixed $cast
      * @param null|(Closure(): mixed) $default null when required
      * @param bool $context given by the code, never read from the request
@@ -20,8 +21,7 @@ final readonly class ScopeArgument
      *                   request arguments it names
      * @param array<string, list<mixed>> $nested rules by dot path inside the
      *                                           argument
-     * @param array<string, string> $nestedAttributes names by dot path
-     *                                                inside the argument
+     * @param array<string, Closure(): string|string> $nestedAttributes
      * @param null|(Closure(mixed): mixed) $check closure cast, run as a
      *                                            validation once the rules of
      *                                            the argument passed
@@ -31,7 +31,7 @@ final readonly class ScopeArgument
         public array $rules,
         public array $each,
         public array $messages,
-        public ?string $attribute,
+        public Closure|string|null $attribute,
         public Closure $cast,
         public ?Closure $default,
         public bool $context = false,

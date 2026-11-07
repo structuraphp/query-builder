@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace StructuraPhp\QueryBuilder\ValueObject\Config;
 
+use Closure;
 use StructuraPhp\QueryBuilder\Contract\Config\PaginationInterface;
 use StructuraPhp\QueryBuilder\Enum\PaginationMode;
 
@@ -20,6 +21,12 @@ final class Pagination implements PaginationInterface
         PaginationMode::Offset,
         PaginationMode::Cursor,
     ];
+
+    /** @var array<string, array<string, Closure(): string|string>> */
+    public private(set) array $messages = [];
+
+    /** @var array<string, Closure(): string|string> by parameter */
+    public private(set) array $attributes = [];
 
     public function default(PaginationMode $mode): static
     {
@@ -45,6 +52,50 @@ final class Pagination implements PaginationInterface
     public function allow(PaginationMode ...$modes): static
     {
         $this->allowed = array_values($modes);
+
+        return $this;
+    }
+
+    public function messages(
+        array $pagination = [],
+        array $limit = [],
+        array $page = [],
+        array $cursor = [],
+    ): static {
+        $given = [
+            'pagination' => $pagination,
+            'limit' => $limit,
+            'page' => $page,
+            'cursor' => $cursor,
+        ];
+
+        foreach ($given as $parameter => $messages) {
+            $this->messages[$parameter] = [
+                ...$this->messages[$parameter] ?? [],
+                ...$messages,
+            ];
+        }
+
+        return $this;
+    }
+
+    public function attribute(
+        Closure|string|null $pagination = null,
+        Closure|string|null $limit = null,
+        Closure|string|null $page = null,
+        Closure|string|null $cursor = null,
+    ): static {
+        $given = [
+            'pagination' => $pagination,
+            'limit' => $limit,
+            'page' => $page,
+            'cursor' => $cursor,
+        ];
+
+        $this->attributes = [
+            ...$this->attributes,
+            ...array_filter($given, static fn (mixed $a): bool => $a !== null),
+        ];
 
         return $this;
     }
