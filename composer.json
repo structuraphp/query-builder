@@ -24,7 +24,7 @@
         "shipmonk/composer-dependency-analyser": "^1.8"
     },
     "suggest": {
-        "dedoc/scramble": "Documents the scalar form of the filter values (ScalarFilterValueExtension, RelationParametersExtension)"
+        "dedoc/scramble": "Documents the scalar form of the filter values (ScalarFilterValueExtension, RelationParametersExtension, NumberBoundsExtension)"
     },
     "license": "MIT",
     "autoload": {
